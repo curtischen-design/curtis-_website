@@ -3,7 +3,7 @@ import { motion, AnimatePresence, useScroll, useSpring } from 'framer-motion';
 import { 
   ArrowUpRight, Menu, X, ArrowLeft, Search, 
   Facebook, Youtube, Mic, ShieldCheck, Hash, 
-  Filter, Plus, ChevronUp, Home, ArrowRight, ChevronRight, Layers, Tag
+  Filter, Plus, ChevronUp, Home, ArrowRight, ChevronRight, Layers, Tag, Bookmark
 } from 'lucide-react';
 
 // Firebase 核心模組
@@ -25,6 +25,7 @@ const firebaseConfig = {
 };
 
 const ADMIN_EMAIL = "curtischentp6@gmail.com"; 
+const MENU_ITEMS = ["關於我", "校園生活", "隨想札記", "時事觀察"];
 
 const app = getApps().length === 0 ? initializeApp(firebaseConfig) : getApp();
 const auth = getAuth(app);
@@ -45,17 +46,16 @@ const renderMarkdown = (text) => {
 };
 
 /**
- * 🛠️ CMS 管理員發文後台 (支援下拉建議 + 手動輸入)
+ * 🛠️ CMS 管理員發文後台 (支援選單歸類)
  */
 const CMSDashboard = ({ user, setView, existingStructure, allTags }) => {
   const [title, setTitle] = useState('');
-  const [category, setCategory] = useState('');
+  const [category, setCategory] = useState(MENU_ITEMS[1]); // 預設校園生活
   const [subCategory, setSubCategory] = useState('');
   const [content, setContent] = useState('');
   const [tagsInput, setTagsInput] = useState('');
   const [loading, setLoading] = useState(false);
 
-  const existingCategories = Object.keys(existingStructure);
   const existingSubCategories = existingStructure[category] || [];
 
   const handlePublish = async (e) => {
@@ -66,14 +66,14 @@ const CMSDashboard = ({ user, setView, existingStructure, allTags }) => {
     try {
       await addDoc(collection(db, 'artifacts', appId, 'public', 'data', 'articles'), {
         title,
-        category: category || "未分類",
+        category, // 這裡對應 Menu 的項目
         subCategory: subCategory || "",
         content,
         tags,
         publishDate: Timestamp.now(),
         authorEmail: user.email
       });
-      alert('發布成功！');
+      alert('內容已成功發布並歸類至：' + category);
       setView({ type: 'home' });
     } catch (err) {
       alert('發布失敗。');
@@ -84,66 +84,66 @@ const CMSDashboard = ({ user, setView, existingStructure, allTags }) => {
 
   const addTag = (tag) => {
     const current = tagsInput.split(',').map(t => t.trim()).filter(t => t !== '');
-    if (!current.includes(tag)) {
-      setTagsInput([...current, tag].join(', '));
-    }
+    if (!current.includes(tag)) setTagsInput([...current, tag].join(', '));
   };
 
   return (
     <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} className="pt-32 px-8 md:px-24 max-w-4xl mx-auto pb-40 text-white">
       <div className="flex justify-between items-end mb-16 border-b border-white/10 pb-8">
-        <h2 className="text-4xl font-serif italic">New Archive.</h2>
+        <div>
+          <h2 className="text-4xl font-serif italic">New Archive.</h2>
+          <p className="text-[10px] text-white/30 mt-2 tracking-widest uppercase">Admin Active: {user.email}</p>
+        </div>
         <button onClick={() => setView({ type: 'home' })} className="text-white/30 text-[10px] tracking-widest hover:text-white uppercase">取消</button>
       </div>
       <form onSubmit={handlePublish} className="space-y-12">
-        <div className="space-y-2">
-          <label className="text-[10px] uppercase tracking-widest text-white/30 ml-1">文章標題</label>
-          <input required className="w-full bg-transparent border-b border-white/10 py-4 text-3xl font-serif outline-none focus:border-white transition-all" value={title} onChange={e => setTitle(e.target.value)} placeholder="Enter title..." />
-        </div>
-
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-12">
-          {/* 主分類：輸入 + 下拉建議 */}
-          <div className="space-y-4">
-            <label className="text-[10px] uppercase tracking-widest text-white/30 ml-1">主分類</label>
-            <input required className="w-full bg-transparent border-b border-white/10 py-2 text-lg outline-none focus:border-white" value={category} onChange={e => setCategory(e.target.value)} placeholder="輸入或選取分類" />
-            <div className="flex flex-wrap gap-2">
-              {existingCategories.map(c => (
-                <button key={c} type="button" onClick={() => setCategory(c)} className="text-[9px] px-3 py-1 rounded-full border border-white/10 hover:border-white/40 transition-colors uppercase tracking-widest">{c}</button>
-              ))}
-            </div>
-          </div>
-
-          {/* 子分類：輸入 + 下拉建議 */}
-          <div className="space-y-4">
-            <label className="text-[10px] uppercase tracking-widest text-white/30 ml-1">子分類</label>
-            <input className="w-full bg-transparent border-b border-white/10 py-2 text-lg outline-none focus:border-white" value={subCategory} onChange={e => setSubCategory(e.target.value)} placeholder="輸入或選取子分類" />
-            <div className="flex flex-wrap gap-2">
-              {existingSubCategories.map(s => (
-                <button key={s} type="button" onClick={() => setSubCategory(s)} className="text-[9px] px-3 py-1 rounded-full border border-white/10 hover:border-white/40 transition-colors uppercase tracking-widest">{s}</button>
-              ))}
-            </div>
-          </div>
-        </div>
-
-        {/* Hashtags：輸入 + 歷史建議 */}
         <div className="space-y-4">
-          <label className="text-[10px] uppercase tracking-widest text-white/30 ml-1">標籤 Hashtags (逗號分隔)</label>
-          <input className="w-full bg-transparent border-b border-white/10 py-2 text-sm outline-none focus:border-white text-white/70" placeholder="例如: 筆記, 靈感" value={tagsInput} onChange={e => setTagsInput(e.target.value)} />
-          <div className="flex flex-wrap gap-2">
-            <span className="text-[9px] text-white/20 uppercase tracking-widest flex items-center gap-1 self-center mr-2"><Tag size={10}/> 常用:</span>
-            {allTags.filter(t => t !== 'All' && !existingCategories.includes(t)).slice(0, 8).map(tag => (
-              <button key={tag} type="button" onClick={() => addTag(tag)} className="text-[9px] px-3 py-1 rounded-full bg-white/5 hover:bg-white/10 text-white/40 hover:text-white transition-all italic">#{tag}</button>
+          <label className="text-[10px] uppercase tracking-widest text-white/40 ml-1">歸類至選單項目</label>
+          <div className="flex flex-wrap gap-3">
+            {MENU_ITEMS.map(m => (
+              <button 
+                key={m} type="button" 
+                onClick={() => setCategory(m)}
+                className={`px-6 py-2 rounded-full text-xs transition-all border ${category === m ? 'bg-white text-[#368C84] border-white' : 'border-white/10 text-white/40 hover:border-white/40'}`}
+              >
+                {m}
+              </button>
             ))}
           </div>
         </div>
 
-        <div className="space-y-2 pt-4">
-          <label className="text-[10px] uppercase tracking-widest text-white/30 ml-1">內容 (Markdown)</label>
+        <div className="space-y-2">
+          <label className="text-[10px] uppercase tracking-widest text-white/40 ml-1">文章標題</label>
+          <input required className="w-full bg-transparent border-b border-white/10 py-4 text-3xl font-serif outline-none focus:border-white text-white" value={title} onChange={e => setTitle(e.target.value)} placeholder="Title..." />
+        </div>
+
+        <div className="space-y-4">
+          <label className="text-[10px] uppercase tracking-widest text-white/40 ml-1">子分類 (如：大一、紀錄...)</label>
+          <input className="w-full bg-transparent border-b border-white/10 py-2 text-lg outline-none focus:border-white" value={subCategory} onChange={e => setSubCategory(e.target.value)} placeholder="輸入或選取" />
+          <div className="flex flex-wrap gap-2">
+            {existingSubCategories.map(s => (
+              <button key={s} type="button" onClick={() => setSubCategory(s)} className="text-[9px] px-3 py-1 rounded-full border border-white/5 hover:border-white/30 text-white/30 hover:text-white uppercase">{s}</button>
+            ))}
+          </div>
+        </div>
+
+        <div className="space-y-4">
+          <label className="text-[10px] uppercase tracking-widest text-white/40 ml-1">標籤 Hashtags</label>
+          <input className="w-full bg-transparent border-b border-white/10 py-2 text-sm outline-none focus:border-white text-white/60" placeholder="以逗號分隔" value={tagsInput} onChange={e => setTagsInput(e.target.value)} />
+          <div className="flex flex-wrap gap-2">
+            {allTags.filter(t => t !== 'All' && !MENU_ITEMS.includes(t)).slice(0, 8).map(tag => (
+              <button key={tag} type="button" onClick={() => addTag(tag)} className="text-[9px] px-3 py-1 rounded-full bg-white/5 text-white/20 hover:text-white transition-all italic">#{tag}</button>
+            ))}
+          </div>
+        </div>
+
+        <div className="space-y-2">
+          <label className="text-[10px] uppercase tracking-widest text-white/40 ml-1">正文內容</label>
           <textarea required rows={10} className="w-full bg-black/10 border border-white/5 p-8 rounded-3xl text-white/80 font-mono text-sm leading-relaxed outline-none focus:border-white/20" value={content} onChange={e => setContent(e.target.value)} />
         </div>
 
-        <button disabled={loading} type="submit" className="w-full bg-white text-[#368C84] py-8 rounded-full font-bold uppercase tracking-[0.5em] hover:scale-[0.98] transition-all shadow-2xl flex items-center justify-center gap-4">
-          {loading ? "處理中..." : <><Plus size={20}/> 確認發布</>}
+        <button disabled={loading} type="submit" className="w-full bg-white text-[#368C84] py-8 rounded-full font-bold uppercase tracking-[0.5em] hover:scale-[0.98] transition-all shadow-2xl">
+          {loading ? "處理中..." : "確認發布"}
         </button>
       </form>
     </motion.div>
@@ -191,6 +191,7 @@ export default function App() {
     return () => window.removeEventListener('scroll', handleScroll);
   }, [lastScrollY]);
 
+  // 分類架構
   const categoryStructure = useMemo(() => {
     const structure = {};
     articles.forEach(art => {
@@ -198,9 +199,7 @@ export default function App() {
       if (art.subCategory) structure[art.category].add(art.subCategory);
     });
     const final = {};
-    Object.keys(structure).forEach(cat => {
-      final[cat] = Array.from(structure[cat]);
-    });
+    Object.keys(structure).forEach(cat => final[cat] = Array.from(structure[cat]));
     return final;
   }, [articles]);
 
@@ -220,8 +219,6 @@ export default function App() {
     });
   }, [articles, activeCategory, activeSubCategory, searchQuery]);
 
-  const menuItems = ["關於我", "校園生活", "隨想札記", "時事觀察"];
-
   return (
     <div className="bg-[#368C84] text-white min-h-screen font-sans selection:bg-white selection:text-[#368C84]">
       <style>{`
@@ -230,68 +227,81 @@ export default function App() {
         ::-webkit-scrollbar { width: 0px; }
       `}</style>
 
+      {/* 閱讀進度條 */}
       <motion.div className="fixed top-0 left-0 right-0 h-1 bg-white origin-left z-[150]" style={{ scaleX }} />
 
+      {/* 自動收放頂欄 */}
       <motion.nav 
         animate={{ y: showHeader ? 0 : -100 }}
         className="fixed top-0 left-0 w-full p-8 flex justify-between items-center z-[110] mix-blend-difference"
       >
-        <div onClick={() => { setView({type:'home'}); setActiveCategory('All'); setActiveSubCategory('All'); window.scrollTo(0,0); }} className="font-bold text-xl cursor-pointer tracking-tighter uppercase italic">Curtis Chen</div>
+        <div onClick={() => { setView({type:'home'}); setActiveCategory('All'); setActiveSubCategory('All'); window.scrollTo(0,0); }} className="font-bold text-xl cursor-pointer tracking-tighter uppercase italic text-white">Curtis Chen</div>
         <div className="flex items-center gap-8">
-          <button onClick={() => setIsSearchOpen(!isSearchOpen)} className="hover:opacity-50 transition-all cursor-pointer"><Search size={24} /></button>
-          <button onClick={() => setIsMenuOpen(true)} className="hover:opacity-50 transition-all cursor-pointer"><Menu size={32} /></button>
+          <button onClick={() => setIsSearchOpen(!isSearchOpen)} className="hover:opacity-50 transition-all cursor-pointer"><Search size={24} color="white"/></button>
+          <button onClick={() => setIsMenuOpen(true)} className="hover:opacity-50 transition-all cursor-pointer"><Menu size={32} color="white"/></button>
         </div>
       </motion.nav>
 
+      {/* 搜尋欄 */}
       <AnimatePresence>
         {isSearchOpen && (
           <motion.div initial={{ opacity: 0, y: -20 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: -20 }} className="fixed top-24 left-0 w-full px-8 md:px-24 z-[105]">
-            <div className="max-w-4xl mx-auto">
+            <div className="max-w-4xl mx-auto relative">
               <input 
-                autoFocus
-                placeholder="搜尋任何內容..." 
+                autoFocus placeholder="搜尋全站內容..." 
                 className="w-full bg-white/10 border border-white/20 backdrop-blur-xl p-6 rounded-full text-xl outline-none focus:border-white/40 transition-all font-serif text-white placeholder-white/30"
                 value={searchQuery}
                 onChange={e => setSearchQuery(e.target.value)}
               />
+              {searchQuery && <button onClick={() => setSearchQuery('')} className="absolute right-8 top-1/2 -translate-y-1/2 text-white/30 hover:text-white"><X size={20}/></button>}
             </div>
           </motion.div>
         )}
       </AnimatePresence>
 
+      {/* 優化後的全螢幕選單 (不再觸底) */}
       <AnimatePresence>
         {isMenuOpen && (
-          <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} transition={transition} className="fixed inset-0 bg-[#368C84] z-[120] flex flex-col items-center justify-center p-12">
-            <button onClick={() => setIsMenuOpen(false)} className="absolute top-8 right-8 hover:rotate-90 transition-all duration-500 cursor-pointer"><X size={48} strokeWidth={1} /></button>
+          <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} transition={transition} className="fixed inset-0 bg-[#368C84] z-[120] flex flex-col p-12">
+            {/* 頂部關閉按鈕 */}
+            <div className="flex justify-end">
+              <button onClick={() => setIsMenuOpen(false)} className="hover:rotate-90 transition-all duration-500 cursor-pointer"><X size={48} strokeWidth={1} color="white" /></button>
+            </div>
             
-            <div className="flex flex-col items-center gap-10 text-5xl md:text-7xl font-serif text-center">
-              {menuItems.map((item, i) => (
+            {/* 中間主選單文字 (垂直置中) */}
+            <div className="flex-grow flex flex-col items-center justify-center gap-10">
+              {MENU_ITEMS.map((item, i) => (
                 <motion.button 
                   key={item} 
                   initial={{ y: 30, opacity: 0 }} 
                   animate={{ y: 0, opacity: 1 }} 
                   transition={{ delay: i * 0.1 }}
                   onClick={() => { setActiveCategory(item); setActiveSubCategory('All'); setView({type:'home'}); setIsMenuOpen(false); window.scrollTo(0,0); }}
-                  className="hover:italic transition-all duration-500 font-light tracking-tight cursor-pointer"
+                  className="text-4xl md:text-6xl font-serif hover:italic hover:scale-105 transition-all duration-500 font-light tracking-tight cursor-pointer"
                 >
                   {item}
                 </motion.button>
               ))}
             </div>
 
-            <div className="absolute bottom-12 flex flex-col items-center gap-8">
+            {/* 底部功能與社群 (分開排列) */}
+            <div className="flex flex-col md:flex-row justify-between items-end gap-12 border-t border-white/10 pt-12 pb-4">
               <div className="flex gap-10 text-white/30">
                 <a href="#" className="hover:text-white transition-colors"><Facebook size={24}/></a>
                 <a href="#" className="hover:text-white transition-colors"><Youtube size={24}/></a>
                 <a href="#" className="hover:text-white transition-colors"><Mic size={24}/></a>
               </div>
-              <div className="text-center">
-                {isAdmin ? (
-                  <button onClick={() => { setView({type:'cms'}); setIsMenuOpen(false); }} className="text-[10px] uppercase tracking-[0.4em] text-white/40 hover:text-white border border-white/10 px-8 py-2 rounded-full mb-4">Admin CMS</button>
-                ) : (
-                  <button onClick={() => signInWithPopup(auth, provider).then(() => setIsMenuOpen(false))} className="text-[10px] uppercase tracking-[0.4em] text-white/20 hover:text-white transition-colors">Login</button>
-                )}
-                <p className="text-[8px] uppercase tracking-[0.5em] text-white/10 italic">© 2026 Curtis Chen.</p>
+              
+              <div className="flex flex-col items-end gap-6">
+                <div className="flex gap-4">
+                  {isAdmin ? (
+                    <button onClick={() => { setView({type:'cms'}); setIsMenuOpen(false); }} className="text-[10px] uppercase tracking-[0.4em] text-white/40 hover:text-white border border-white/10 px-8 py-2 rounded-full cursor-pointer">Admin CMS</button>
+                  ) : (
+                    <button onClick={() => signInWithPopup(auth, provider).then(() => setIsMenuOpen(false))} className="text-[10px] uppercase tracking-[0.4em] text-white/20 hover:text-white transition-colors cursor-pointer italic">Login</button>
+                  )}
+                  {user && <button onClick={() => signOut(auth)} className="text-[10px] text-red-400/50 hover:text-red-400 uppercase tracking-widest">Logout</button>}
+                </div>
+                <p className="text-[8px] uppercase tracking-[0.6em] text-white/10 italic">© 2026 Curtis Chen. Design & Direction.</p>
               </div>
             </div>
           </motion.div>
@@ -306,9 +316,10 @@ export default function App() {
                 {activeCategory === 'All' ? <>美學<br/>動態<br/>視覺</> : activeCategory}
               </motion.h1>
               
+              {/* 分類篩選列 (會跟隨 Menu 切換) */}
               <div className="flex items-center gap-4 overflow-x-auto py-4 mb-4 scrollbar-hide border-b border-white/5 sticky top-0 bg-[#368C84]/90 backdrop-blur-lg z-50">
-                <span className="text-[9px] uppercase tracking-widest text-white/20 flex-shrink-0 flex items-center gap-2"><Filter size={10}/> Category</span>
-                {['All', ...Object.keys(categoryStructure)].map(cat => (
+                <span className="text-[9px] uppercase tracking-widest text-white/20 flex-shrink-0 flex items-center gap-2"><Bookmark size={10}/> Section</span>
+                {['All', ...MENU_ITEMS].map(cat => (
                   <button 
                     key={cat} 
                     onClick={() => { setActiveCategory(cat); setActiveSubCategory('All'); }}
@@ -319,8 +330,9 @@ export default function App() {
                 ))}
               </div>
 
+              {/* 動態子分類列 */}
               {activeCategory !== 'All' && categoryStructure[activeCategory]?.length > 0 && (
-                <motion.div initial={{ opacity: 0, y: -10 }} animate={{ opacity: 1, y: 0 }} className="flex items-center gap-3 overflow-x-auto py-2 mb-8 scrollbar-hide">
+                <motion.div initial={{ opacity: 0, x: -10 }} animate={{ opacity: 1, x: 0 }} className="flex items-center gap-3 overflow-x-auto py-2 mb-8 scrollbar-hide">
                   <span className="text-[9px] uppercase tracking-widest text-white/20 flex-shrink-0 flex items-center gap-2 ml-4"><Layers size={10}/> Sub</span>
                   {['All', ...categoryStructure[activeCategory]].map(sub => (
                     <button 
@@ -335,6 +347,7 @@ export default function App() {
               )}
             </div>
 
+            {/* 作品列表 */}
             <div className="grid grid-cols-1 border-t border-white/10">
               {filteredArticles.length === 0 ? (
                 <div className="py-40 text-white/10 font-serif italic text-3xl text-center border border-dashed border-white/5 mt-10 rounded-[60px]">Empty.</div>
@@ -357,9 +370,9 @@ export default function App() {
                       </div>
                       <h3 className="text-4xl md:text-7xl font-serif group-hover:italic transition-all duration-1000 leading-none text-white">{art.title}</h3>
                     </div>
-                    <div className="mt-8 md:mt-0 flex items-center gap-6">
-                      <div className="w-14 h-14 rounded-full border border-white/10 flex items-center justify-center group-hover:bg-white group-hover:text-[#368C84] transition-all duration-700 text-white">
-                        <ArrowUpRight size={24} />
+                    <div className="mt-8 md:mt-0">
+                      <div className="w-14 h-14 rounded-full border border-white/10 flex items-center justify-center group-hover:bg-white group-hover:text-[#368C84] transition-all duration-700">
+                        <ArrowUpRight size={24} color="white" className="group-hover:stroke-[#368C84]" />
                       </div>
                     </div>
                   </motion.div>
@@ -375,13 +388,10 @@ export default function App() {
               <button onClick={() => setView({ type: 'home' })} className="flex items-center gap-3 text-white/30 uppercase text-[10px] tracking-[0.5em] hover:text-white transition-colors cursor-pointer">
                 <ArrowLeft size={14} /> Back
               </button>
-              <div className="flex items-center gap-4 text-[10px] uppercase tracking-widest text-white/20">
-                <span className="cursor-pointer hover:text-white" onClick={() => { setView({type:'home'}); setActiveCategory(articles.find(a => a.id === view.id).category); }}>{articles.find(a => a.id === view.id)?.category}</span>
+              <div className="flex items-center gap-4 text-[10px] uppercase tracking-widest text-white/20 font-serif">
+                <span className="hover:text-white cursor-pointer" onClick={() => { setView({type:'home'}); setActiveCategory(articles.find(a => a.id === view.id).category); }}>{articles.find(a => a.id === view.id)?.category}</span>
                 {articles.find(a => a.id === view.id)?.subCategory && (
-                   <>
-                   <ChevronRight size={10} />
-                   <span className="cursor-pointer hover:text-white" onClick={() => { setView({type:'home'}); setActiveCategory(articles.find(a => a.id === view.id).category); setActiveSubCategory(articles.find(a => a.id === view.id).subCategory); }}>{articles.find(a => a.id === view.id).subCategory}</span>
-                   </>
+                   <><ChevronRight size={10} /><span className="text-white/40 italic">{articles.find(a => a.id === view.id).subCategory}</span></>
                 )}
               </div>
             </div>
@@ -389,11 +399,12 @@ export default function App() {
             {articles.find(a => a.id === view.id) && (
               <>
                 <h1 className="text-5xl md:text-[7.5vw] font-bold font-serif mb-20 leading-[1.05] tracking-tighter italic text-white">{articles.find(a => a.id === view.id).title}</h1>
-                <div className="text-xl md:text-2xl leading-relaxed text-white/70 space-y-12 font-serif max-w-3xl mb-40 article-content" dangerouslySetInnerHTML={{ __html: renderMarkdown(articles.find(a => a.id === view.id).content) }} />
+                <div className="text-xl md:text-2xl leading-relaxed text-white/70 space-y-12 font-serif max-w-3xl mb-40" dangerouslySetInnerHTML={{ __html: renderMarkdown(articles.find(a => a.id === view.id).content) }} />
                 
+                {/* 下一篇閱讀 */}
                 <div className="border-t border-white/10 pt-20 flex flex-col md:flex-row justify-between items-start gap-12">
                    <div className="max-w-xs">
-                     <p className="text-[10px] uppercase tracking-[0.5em] text-white/20 mb-4 italic">Next Up</p>
+                     <p className="text-[10px] uppercase tracking-[0.5em] text-white/20 mb-4 italic">Continue Reading</p>
                      {articles.filter(a => a.id !== view.id)[0] && (
                        <div onClick={() => { setView({type:'article', id: articles.filter(a => a.id !== view.id)[0].id}); window.scrollTo(0,0); }} className="group cursor-pointer">
                          <h4 className="text-2xl font-serif group-hover:italic transition-all">{articles.filter(a => a.id !== view.id)[0].title}</h4>
@@ -401,7 +412,7 @@ export default function App() {
                        </div>
                      )}
                    </div>
-                   <button onClick={() => { setView({type:'home'}); window.scrollTo(0,0); }} className="p-8 border border-white/10 rounded-full hover:bg-white hover:text-[#368C84] transition-all"><Home size={32}/></button>
+                   <button onClick={() => { setView({type:'home'}); window.scrollTo(0,0); }} className="p-8 border border-white/10 rounded-full hover:bg-white hover:text-[#368C84] transition-all shadow-xl group"><Home size={32} className="group-hover:stroke-[#368C84]" /></button>
                 </div>
               </>
             )}
@@ -411,6 +422,7 @@ export default function App() {
         {view.type === 'cms' && isAdmin && <CMSDashboard user={user} setView={setView} existingStructure={categoryStructure} allTags={allTagsAndCats} />}
       </AnimatePresence>
 
+      {/* 觸底浮動返回 */}
       <AnimatePresence>
         {showBackToTop && (
           <motion.button 
@@ -424,7 +436,7 @@ export default function App() {
       </AnimatePresence>
 
       <footer className="p-12 md:p-24 border-t border-white/5 flex flex-col md:flex-row justify-between items-center gap-8 text-[8px] text-white/10 uppercase tracking-[0.6em] font-light">
-        <span className="cursor-pointer" onClick={() => setView({type:'home'})}>© 2026 CURTIS CHEN — ARCHIVE OF THOUGHTS</span>
+        <span className="cursor-pointer" onClick={() => setView({type:'home'})}>© 2026 CURTIS CHEN — ARCHIVE & DIRECTION</span>
         <div className="flex items-center gap-8 italic">
           <ShieldCheck size={10}/> ADMIN AUTHENTICATED
         </div>
