@@ -1,3 +1,27 @@
-@tailwind base;
-@tailwind components;
-@tailwind utilities;
+/* 💡 Tailwind v4 必須使用 @import 語法 */
+@import "tailwindcss";
+
+/* 🎨 全域美學設定 */
+:root {
+  --background: #368C84; /* 你最愛的深青色 */
+}
+
+body {
+  margin: 0;
+  background-color: var(--background);
+  color: white;
+  font-family: 'Inter', system-ui, -apple-system, sans-serif;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+}
+
+/* 確保全螢幕背景色一致，避免變白 */
+#root {
+  background-color: var(--background);
+  min-height: 100vh;
+}
+
+/* 絲滑滾動 */
+html {
+  scroll-behavior: smooth;
+}
