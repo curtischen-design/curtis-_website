@@ -1,6 +1,10 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useMemo } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { ArrowUpRight, Menu, X, ArrowLeft, Save, Layout, LogIn, LogOut, ShieldCheck, Tag, Hash, Filter } from 'lucide-react';
+import { 
+  ArrowUpRight, Menu, X, ArrowLeft, Search, 
+  Facebook, Youtube, Mic, ShieldCheck, Hash, 
+  Filter, Plus, Send, ChevronRight 
+} from 'lucide-react';
 
 // Firebase 核心模組
 import { initializeApp, getApps, getApp } from 'firebase/app';
@@ -8,7 +12,7 @@ import { getAuth, signInWithPopup, GoogleAuthProvider, onAuthStateChanged, signO
 import { getFirestore, collection, addDoc, onSnapshot, Timestamp } from 'firebase/firestore';
 
 /**
- * 🔑 您的 Firebase 配置
+ * 🔑 Firebase 配置
  */
 const firebaseConfig = {
   apiKey: "AIzaSyAuGzaB70YTeYDrTzJk-IWtygBzkZvkpPM",
@@ -20,59 +24,56 @@ const firebaseConfig = {
   measurementId: "G-RG0GRM30J2"
 };
 
-// 🔐 管理員設定
 const ADMIN_EMAIL = "curtischentp6@gmail.com"; 
 
-// 初始化 Firebase
 const app = getApps().length === 0 ? initializeApp(firebaseConfig) : getApp();
 const auth = getAuth(app);
 const db = getFirestore(app);
 const provider = new GoogleAuthProvider();
 const appId = 'my-portfolio-v1';
 
-const transition = { duration: 1.2, ease: [0.22, 1, 0.36, 1] };
+const transition = { duration: 0.8, ease: [0.22, 1, 0.36, 1] };
 
 // Markdown 渲染器
 const renderMarkdown = (text) => {
   if (!text) return '';
   return text
-    .replace(/^# (.*$)/gim, '<h1 class="text-4xl md:text-6xl font-bold mt-12 mb-8 font-serif leading-tight text-white">$1</h1>')
+    .replace(/^# (.*$)/gim, '<h1 class="text-4xl md:text-6xl font-bold mt-12 mb-8 font-serif text-white">$1</h1>')
     .replace(/^## (.*$)/gim, '<h2 class="text-2xl md:text-3xl font-bold mt-10 mb-6 font-serif text-white">$1</h2>')
     .replace(/\*\*(.*)\*\*/gim, '<strong class="text-white font-bold">$1</strong>')
     .replace(/\n/g, '<br/>');
 };
 
 /**
- * 元件：管理員發文介面 (新增標籤功能)
+ * 🛠️ CMS 管理員發文後台
  */
 const CMSDashboard = ({ user, setView }) => {
   const [title, setTitle] = useState('');
+  const [category, setCategory] = useState('作品輯錄');
   const [content, setContent] = useState('');
-  const [tagsInput, setTagsInput] = useState(''); // 以逗號分隔的標籤字串
+  const [tagsInput, setTagsInput] = useState('');
   const [loading, setLoading] = useState(false);
+
+  const categories = ["關於我", "作品輯錄", "活動行程", "合作邀約", "跟我說話", "書與課程"];
 
   const handlePublish = async (e) => {
     e.preventDefault();
     setLoading(true);
-    
-    // 將字串轉為陣列，移除空白與重複項
-    const tags = tagsInput.split(',')
-      .map(t => t.trim())
-      .filter(t => t !== '');
+    const tags = tagsInput.split(',').map(t => t.trim()).filter(t => t !== '');
 
     try {
       await addDoc(collection(db, 'artifacts', appId, 'public', 'data', 'articles'), {
         title,
+        category,
         content,
-        tags, // 儲存標籤陣列
+        tags,
         publishDate: Timestamp.now(),
-        createdAt: Timestamp.now(),
         authorEmail: user.email
       });
-      alert('作品已成功同步至雲端！');
+      alert('發布成功！');
       setView({ type: 'home' });
     } catch (err) {
-      alert('發布失敗，請確認 Firebase Rules 設定。');
+      alert('發布失敗，請檢查規則。');
     } finally {
       setLoading(false);
     }
@@ -81,30 +82,32 @@ const CMSDashboard = ({ user, setView }) => {
   return (
     <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} className="pt-32 px-8 md:px-24 max-w-4xl mx-auto pb-40 text-white">
       <div className="flex justify-between items-end mb-16 border-b border-white/10 pb-8">
-        <div>
-          <h2 className="text-4xl font-serif italic">New Creation.</h2>
-          <p className="text-[10px] text-white/30 mt-2 uppercase tracking-widest italic">Curating as {user.email}</p>
-        </div>
-        <button onClick={() => setView({ type: 'home' })} className="text-white/30 uppercase text-[10px] tracking-[0.3em] hover:text-white transition-colors">Cancel</button>
+        <h2 className="text-4xl font-serif italic font-light">新增內容.</h2>
+        <button onClick={() => setView({ type: 'home' })} className="text-white/30 text-[10px] tracking-widest hover:text-white uppercase">取消</button>
       </div>
-      <form onSubmit={handlePublish} className="space-y-12">
-        <div className="space-y-4">
-            <label className="text-[10px] uppercase tracking-widest text-white/40 ml-1">Project Title</label>
-            <input required placeholder="給作品一個響亮的標題" className="w-full bg-transparent border-b border-white/10 py-4 text-3xl font-serif outline-none focus:border-white transition-all text-white" value={title} onChange={e => setTitle(e.target.value)} />
+      <form onSubmit={handlePublish} className="space-y-10">
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-10">
+          <div className="space-y-2">
+            <label className="text-[10px] uppercase tracking-widest text-white/30">標題</label>
+            <input required className="w-full bg-transparent border-b border-white/10 py-2 text-xl font-serif outline-none focus:border-white transition-all" value={title} onChange={e => setTitle(e.target.value)} />
+          </div>
+          <div className="space-y-2">
+            <label className="text-[10px] uppercase tracking-widest text-white/30">分類</label>
+            <select className="w-full bg-transparent border-b border-white/10 py-2 text-xl font-serif outline-none focus:border-white" value={category} onChange={e => setCategory(e.target.value)}>
+              {categories.map(c => <option key={c} className="bg-zinc-900" value={c}>{c}</option>)}
+            </select>
+          </div>
         </div>
-
-        <div className="space-y-4">
-            <label className="text-[10px] uppercase tracking-widest text-white/40 ml-1 flex items-center gap-2"><Hash size={10}/> Categories / Hashtags (用英文逗號分隔)</label>
-            <input placeholder="例如：平面設計, 品牌識別, 2026" className="w-full bg-transparent border-b border-white/10 py-4 text-lg outline-none focus:border-white transition-all text-white/70" value={tagsInput} onChange={e => setTagsInput(e.target.value)} />
+        <div className="space-y-2">
+          <label className="text-[10px] uppercase tracking-widest text-white/30">標籤 (用逗號分隔)</label>
+          <input className="w-full bg-transparent border-b border-white/10 py-2 text-sm outline-none focus:border-white text-white/60" placeholder="例如: 平面設計, 攝影, 2026" value={tagsInput} onChange={e => setTagsInput(e.target.value)} />
         </div>
-
-        <div className="space-y-4">
-            <label className="text-[10px] uppercase tracking-widest text-white/40 ml-1">Markdown Content</label>
-            <textarea required placeholder="使用 Markdown 描述你的設計歷程..." rows={12} className="w-full bg-black/5 border border-white/5 p-8 rounded-3xl text-white/80 font-mono leading-relaxed outline-none focus:border-white/20 transition-all" value={content} onChange={e => setContent(e.target.value)} />
+        <div className="space-y-2">
+          <label className="text-[10px] uppercase tracking-widest text-white/30">內文 (Markdown)</label>
+          <textarea required rows={10} className="w-full bg-white/5 border border-white/5 p-6 rounded-2xl text-white/80 font-mono text-sm leading-relaxed outline-none focus:border-white/20" value={content} onChange={e => setContent(e.target.value)} />
         </div>
-
-        <button disabled={loading} type="submit" className="w-full bg-white text-[#368C84] py-8 rounded-full font-bold uppercase tracking-[0.5em] hover:scale-[0.98] transition-all shadow-2xl">
-          {loading ? "Archiving..." : "Publish to Gallery"}
+        <button disabled={loading} type="submit" className="w-full bg-white text-black py-6 rounded-full font-bold uppercase tracking-[0.4em] hover:scale-[0.98] transition-all flex items-center justify-center gap-2">
+          {loading ? "上傳中..." : <><Plus size={18}/> 確認發布</>}
         </button>
       </form>
     </motion.div>
@@ -114,8 +117,10 @@ const CMSDashboard = ({ user, setView }) => {
 export default function App() {
   const [view, setView] = useState({ type: 'home', id: null });
   const [isMenuOpen, setIsMenuOpen] = useState(false);
+  const [isSearchOpen, setIsSearchOpen] = useState(false);
+  const [searchQuery, setSearchQuery] = useState('');
   const [articles, setArticles] = useState([]);
-  const [activeCategory, setActiveCategory] = useState('All'); // 目前篩選的類別
+  const [activeCategory, setActiveCategory] = useState('All');
   const [user, setUser] = useState(null);
 
   const isAdmin = user && user.email === ADMIN_EMAIL;
@@ -132,97 +137,128 @@ export default function App() {
     });
   }, []);
 
-  // 取得所有作品中不重複的標籤列表
-  const allCategories = ['All', ...new Set(articles.flatMap(art => art.tags || []))];
+  // 搜尋與篩選邏輯
+  const filteredArticles = useMemo(() => {
+    return articles.filter(art => {
+      const matchesCategory = activeCategory === 'All' || art.category === activeCategory || (art.tags && art.tags.includes(activeCategory));
+      const matchesSearch = art.title.toLowerCase().includes(searchQuery.toLowerCase()) || 
+                            art.content.toLowerCase().includes(searchQuery.toLowerCase());
+      return matchesCategory && matchesSearch;
+    });
+  }, [articles, activeCategory, searchQuery]);
 
-  // 根據選擇的類別篩選作品
-  const filteredArticles = activeCategory === 'All' 
-    ? articles 
-    : articles.filter(art => art.tags && art.tags.includes(activeCategory));
+  const allTags = ['All', ...new Set(articles.flatMap(art => [art.category, ...(art.tags || [])]))].filter(Boolean);
 
-  const handleLogin = async () => {
-    try {
-      await signInWithPopup(auth, provider);
-      setIsMenuOpen(false);
-    } catch (error) {
-      alert("登入失敗，請確認 Firebase 授權網域。");
-    }
-  };
+  const menuItems = ["關於我", "作品輯錄", "活動行程", "合作邀約", "跟我說話", "書與課程"];
 
   return (
-    <div className="bg-[#368C84] text-white min-h-screen font-sans selection:bg-white selection:text-[#368C84]">
+    <div className="bg-[#0c0c0c] text-white min-h-screen font-sans selection:bg-white selection:text-black">
       <style>{`
-        @import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;700&family=Noto+Serif+TC:wght@400;700&display=swap');
+        @import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;700&family=Noto+Serif+TC:wght@300;400;700&display=swap');
         .font-serif { font-family: 'Noto Serif TC', serif; }
         ::-webkit-scrollbar { width: 0px; }
       `}</style>
 
-      {/* Navigation */}
-      <nav className="fixed top-0 left-0 w-full p-8 flex justify-between items-center z-[110] mix-blend-difference text-white">
-        <div onClick={() => setView({type:'home'})} className="font-bold text-xl cursor-pointer tracking-tighter uppercase italic">Curtis Chen</div>
-        <button onClick={() => setIsMenuOpen(true)} className="hover:opacity-50 transition-all">
-          <Menu size={32} />
-        </button>
+      {/* 導航欄 */}
+      <nav className="fixed top-0 left-0 w-full p-8 flex justify-between items-center z-[110] mix-blend-difference">
+        <div onClick={() => { setView({type:'home'}); setActiveCategory('All'); setSearchQuery(''); }} className="font-bold text-xl cursor-pointer tracking-tighter uppercase italic">Curtis Chen</div>
+        <div className="flex items-center gap-8">
+          <button onClick={() => setIsSearchOpen(!isSearchOpen)} className="hover:opacity-50 transition-all"><Search size={24} /></button>
+          <button onClick={() => setIsMenuOpen(true)} className="hover:opacity-50 transition-all"><Menu size={32} /></button>
+        </div>
       </nav>
 
-      {/* Fullscreen Menu */}
+      {/* 搜尋欄 (摺疊式) */}
+      <AnimatePresence>
+        {isSearchOpen && (
+          <motion.div initial={{ opacity: 0, y: -20 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: -20 }} className="fixed top-24 left-0 w-full px-8 md:px-24 z-[105]">
+            <div className="max-w-4xl mx-auto relative">
+              <input 
+                autoFocus
+                placeholder="搜尋作品或標籤..." 
+                className="w-full bg-white/5 border border-white/10 backdrop-blur-xl p-6 rounded-full text-xl outline-none focus:border-white/30 transition-all font-serif"
+                value={searchQuery}
+                onChange={e => setSearchQuery(e.target.value)}
+              />
+              {searchQuery && <button onClick={() => setSearchQuery('')} className="absolute right-8 top-1/2 -translate-y-1/2 text-white/30 hover:text-white"><X size={20}/></button>}
+            </div>
+          </motion.div>
+        )}
+      </AnimatePresence>
+
+      {/* 仿 image_727b98 全螢幕選單 */}
       <AnimatePresence>
         {isMenuOpen && (
-          <motion.div initial={{ x: '100%' }} animate={{ x: 0 }} exit={{ x: '100%' }} transition={transition} className="fixed inset-0 bg-zinc-900 z-[120] flex flex-col justify-center items-center">
-            <button onClick={() => setIsMenuOpen(false)} className="absolute top-8 right-8 text-white/30 hover:text-white"><X size={32} /></button>
-            <div className="flex flex-col gap-12 text-center text-7xl font-serif">
-              <button onClick={() => { setView({type:'home'}); setIsMenuOpen(false); }} className="hover:italic transition-all text-white">Gallery.</button>
-              {isAdmin ? (
-                <button onClick={() => { setView({type:'cms'}); setIsMenuOpen(false); }} className="text-xl uppercase tracking-[0.4em] text-white/40 italic hover:text-white">Admin CMS</button>
-              ) : (
-                <button onClick={handleLogin} className="text-xl uppercase tracking-[0.4em] text-white/20 italic hover:text-white transition-colors">Admin Login</button>
-              )}
+          <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} transition={transition} className="fixed inset-0 bg-[#0c0c0c] z-[120] flex flex-col p-12">
+            <div className="flex justify-end mb-auto">
+              <button onClick={() => setIsMenuOpen(false)} className="hover:rotate-90 transition-all duration-500"><X size={48} strokeWidth={1} /></button>
             </div>
-            {user && (
-              <div className="absolute bottom-12 flex flex-col items-center gap-4">
-                <p className="text-white/20 text-[10px] tracking-widest uppercase italic">Session: {user.email}</p>
-                <button onClick={() => signOut(auth)} className="text-[10px] uppercase tracking-widest text-red-400/40 hover:text-red-400">Logout</button>
+            
+            {/* 橫向選單文字 */}
+            <div className="flex flex-wrap justify-center items-center gap-x-12 gap-y-8 text-3xl md:text-5xl font-serif text-center mb-auto">
+              {menuItems.map((item, i) => (
+                <motion.button 
+                  key={item} 
+                  initial={{ y: 20, opacity: 0 }} 
+                  animate={{ y: 0, opacity: 1 }} 
+                  transition={{ delay: 0.1 + (i * 0.05) }}
+                  onClick={() => { setActiveCategory(item); setView({type:'home'}); setIsMenuOpen(false); }}
+                  className="hover:italic hover:scale-110 transition-all duration-500 font-light tracking-tight"
+                >
+                  {item}
+                </motion.button>
+              ))}
+            </div>
+
+            {/* 底部社群圖示與版權 */}
+            <div className="flex flex-col md:flex-row justify-between items-end gap-8 border-t border-white/5 pt-12">
+              <div className="flex gap-8 text-white/40">
+                <a href="#" className="hover:text-white transition-colors"><Facebook size={20}/></a>
+                <a href="#" className="hover:text-white transition-colors"><Youtube size={20}/></a>
+                <a href="#" className="hover:text-white transition-colors"><Mic size={20}/></a>
               </div>
-            )}
+              
+              <div className="flex flex-col items-end gap-4">
+                {isAdmin ? (
+                  <button onClick={() => { setView({type:'cms'}); setIsMenuOpen(false); }} className="text-[10px] uppercase tracking-[0.5em] text-white/30 hover:text-white transition-colors border border-white/20 px-6 py-2 rounded-full">Admin CMS</button>
+                ) : (
+                  <button onClick={() => signInWithPopup(auth, provider).then(() => setIsMenuOpen(false))} className="text-[10px] uppercase tracking-[0.5em] text-white/20 hover:text-white transition-colors">Login</button>
+                )}
+                <p className="text-[8px] uppercase tracking-[0.5em] text-white/10 italic">© 2026 Curtis Chen. All Rights Reserved</p>
+              </div>
+            </div>
           </motion.div>
         )}
       </AnimatePresence>
 
       <AnimatePresence mode="wait">
         {view.type === 'home' && (
-          <motion.main key="home" initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} className="pt-40 px-8 md:px-24">
-            <motion.h1 initial={{ y: 40, opacity: 0 }} animate={{ y: 0, opacity: 1 }} transition={{ delay: 0.2, ...transition }} className="text-7xl md:text-[11vw] font-bold leading-[0.82] mb-12 uppercase tracking-tighter font-serif text-white">
-              美學<br/>動態<br/>視覺
-            </motion.h1>
-
-            {/* 分類篩選列 */}
-            <motion.div 
-                initial={{ opacity: 0 }} 
-                animate={{ opacity: 1 }} 
-                transition={{ delay: 0.5 }}
-                className="flex items-center gap-4 overflow-x-auto py-8 mb-20 border-b border-white/5 scrollbar-hide sticky top-0 bg-[#368C84]/80 backdrop-blur-md z-50"
-            >
-                <span className="text-[10px] uppercase tracking-widest text-white/30 mr-4 flex items-center gap-2 flex-shrink-0"><Filter size={10}/> Filter by</span>
-                {allCategories.map(cat => (
-                    <button 
-                        key={cat} 
-                        onClick={() => setActiveCategory(cat)}
-                        className={`px-6 py-2 rounded-full text-xs uppercase tracking-widest transition-all border whitespace-nowrap ${
-                            activeCategory === cat 
-                            ? 'bg-white text-[#368C84] border-white font-bold' 
-                            : 'border-white/10 text-white/40 hover:border-white/30 hover:text-white'
-                        }`}
-                    >
-                        {cat}
-                    </button>
+          <motion.main key="home" initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} className="pt-40 px-8 md:px-24 pb-40">
+            {/* 標題區域 */}
+            <div className="mb-32">
+              <motion.h1 initial={{ y: 40, opacity: 0 }} animate={{ y: 0, opacity: 1 }} transition={transition} className="text-7xl md:text-[12vw] font-bold leading-[0.8] mb-12 uppercase tracking-tighter font-serif">
+                {activeCategory === 'All' ? <>美學<br/>動態<br/>視覺</> : activeCategory}
+              </motion.h1>
+              
+              {/* 分類標籤滾動列 */}
+              <div className="flex items-center gap-4 overflow-x-auto py-6 scrollbar-hide border-b border-white/5">
+                <Filter size={14} className="text-white/20 flex-shrink-0" />
+                {allTags.map(tag => (
+                  <button 
+                    key={tag} 
+                    onClick={() => setActiveCategory(tag)}
+                    className={`px-6 py-2 rounded-full text-[10px] uppercase tracking-[0.2em] whitespace-nowrap transition-all border ${activeCategory === tag ? 'bg-white text-black border-white' : 'border-white/10 text-white/30 hover:border-white/40 hover:text-white'}`}
+                  >
+                    {tag}
+                  </button>
                 ))}
-            </motion.div>
-            
-            <div className="grid grid-cols-1 mb-40">
+              </div>
+            </div>
+
+            {/* 作品清單 */}
+            <div className="grid grid-cols-1 border-t border-white/10">
               {filteredArticles.length === 0 ? (
-                <div className="py-32 text-white/10 font-serif italic text-3xl border border-dashed border-white/5 rounded-[60px] text-center">
-                  {activeCategory === 'All' ? 'No projects yet.' : `No projects found in "${activeCategory}"`}
-                </div>
+                <div className="py-40 text-white/5 font-serif italic text-4xl text-center">Empty.</div>
               ) : (
                 filteredArticles.map((art, index) => (
                   <motion.div 
@@ -232,18 +268,20 @@ export default function App() {
                     viewport={{ once: true }}
                     transition={{ delay: index * 0.05, ...transition }}
                     onClick={() => setView({ type: 'article', id: art.id })} 
-                    className="group py-16 border-b border-white/10 flex justify-between items-center cursor-pointer hover:bg-white/[0.02] transition-all px-8 -mx-8"
+                    className="group py-16 border-b border-white/5 flex flex-col md:flex-row justify-between items-start md:items-center cursor-pointer hover:bg-white/[0.01] transition-all px-8 -mx-8"
                   >
-                    <div className="flex-1">
-                      <div className="flex flex-wrap gap-2 mb-6">
-                        {art.tags && art.tags.map(tag => (
-                            <span key={tag} className="text-[9px] uppercase tracking-widest border border-white/20 px-3 py-1 rounded-full text-white/40 group-hover:border-white/40 group-hover:text-white transition-all">#{tag}</span>
-                        ))}
+                    <div className="flex-1 space-y-4">
+                      <div className="flex items-center gap-3">
+                        <span className="text-[10px] uppercase tracking-widest text-white/20 font-light">{art.category}</span>
+                        {art.tags?.map(t => <span key={t} className="text-[10px] text-white/10 font-mono">#{t}</span>)}
                       </div>
-                      <h3 className="text-4xl md:text-7xl font-serif group-hover:italic transition-all duration-700 text-white leading-tight">{art.title}</h3>
+                      <h3 className="text-4xl md:text-7xl font-serif group-hover:italic transition-all duration-1000 leading-none">{art.title}</h3>
                     </div>
-                    <div className="w-16 h-16 rounded-full border border-white/10 flex items-center justify-center group-hover:bg-white group-hover:text-[#368C84] transition-all duration-700 ml-8 flex-shrink-0">
-                      <ArrowUpRight size={24} />
+                    <div className="mt-8 md:mt-0 flex items-center gap-6">
+                      <span className="text-[10px] text-white/10 uppercase tracking-[0.5em] group-hover:text-white/40 transition-colors">View Project</span>
+                      <div className="w-12 h-12 rounded-full border border-white/10 flex items-center justify-center group-hover:bg-white group-hover:text-black transition-all duration-700">
+                        <ArrowUpRight size={20} />
+                      </div>
                     </div>
                   </motion.div>
                 ))
@@ -254,18 +292,17 @@ export default function App() {
 
         {view.type === 'article' && (
           <motion.article key="article" initial={{ opacity: 0, scale: 0.98 }} animate={{ opacity: 1, scale: 1 }} exit={{ opacity: 0 }} transition={transition} className="pt-40 px-8 md:px-24 max-w-5xl mx-auto pb-60">
-            <button onClick={() => setView({ type: 'home' })} className="mb-20 flex items-center gap-3 text-white/30 uppercase text-[10px] tracking-[0.3em] hover:text-white transition-colors">
-              <ArrowLeft size={14} /> Back to Gallery
+            <button onClick={() => setView({ type: 'home' })} className="mb-20 flex items-center gap-3 text-white/30 uppercase text-[10px] tracking-[0.5em] hover:text-white transition-colors">
+              <ArrowLeft size={14} /> Back
             </button>
             {articles.find(a => a.id === view.id) && (
               <>
-                <div className="flex flex-wrap gap-3 mb-8">
-                  {articles.find(a => a.id === view.id).tags?.map(tag => (
-                      <span key={tag} className="text-[10px] uppercase tracking-[0.2em] bg-white/5 border border-white/10 px-4 py-1.5 rounded-full text-white/60">#{tag}</span>
-                  ))}
+                <div className="flex items-center gap-4 mb-8">
+                  <span className="px-4 py-1 border border-white/10 rounded-full text-[10px] text-white/40 uppercase tracking-widest">{articles.find(a => a.id === view.id).category}</span>
+                  {articles.find(a => a.id === view.id).tags?.map(t => <span key={t} className="text-[10px] text-white/20">#{t}</span>)}
                 </div>
-                <h1 className="text-6xl md:text-9xl font-bold font-serif mb-20 leading-[0.9] tracking-tighter text-white">{articles.find(a => a.id === view.id).title}</h1>
-                <div className="text-xl md:text-2xl leading-relaxed text-white/70 space-y-10 font-serif max-w-3xl" dangerouslySetInnerHTML={{ __html: renderMarkdown(articles.find(a => a.id === view.id).content) }} />
+                <h1 className="text-6xl md:text-[8vw] font-bold font-serif mb-20 leading-[0.9] tracking-tighter italic">{articles.find(a => a.id === view.id).title}</h1>
+                <div className="text-xl md:text-2xl leading-relaxed text-white/60 space-y-12 font-serif max-w-3xl" dangerouslySetInnerHTML={{ __html: renderMarkdown(articles.find(a => a.id === view.id).content) }} />
               </>
             )}
           </motion.article>
@@ -274,15 +311,12 @@ export default function App() {
         {view.type === 'cms' && isAdmin && <CMSDashboard user={user} setView={setView} />}
       </AnimatePresence>
 
-      <footer className="p-8 md:p-24 border-t border-white/5 flex flex-col md:flex-row justify-between items-center gap-8 text-[8px] text-white/20 uppercase tracking-[0.5em] font-light">
-        <div className="flex flex-col items-center md:items-start gap-2">
-            <span>© 2026 Curtis Chen — DIGITAL DESIGN</span>
-            <span className="flex items-center gap-2"><ShieldCheck size={10}/> Authenticated via Firebase Cloud</span>
-        </div>
-        <div className="flex gap-8 italic">
-            <button onClick={() => setView({type:'home'})} className="hover:text-white transition-colors">Portfolio</button>
-            <button className="hover:text-white transition-colors cursor-not-allowed opacity-30">Archives</button>
-            <button className="hover:text-white transition-colors cursor-not-allowed opacity-30">Contact</button>
+      <footer className="p-12 md:p-24 border-t border-white/5 flex flex-col md:flex-row justify-between items-center gap-8 text-[8px] text-white/10 uppercase tracking-[0.6em] font-light">
+        <span>© 2026 CURTIS CHEN — DESIGN & DIRECTION</span>
+        <div className="flex items-center gap-8">
+          <a href="#" className="hover:text-white transition-colors">Instagram</a>
+          <a href="#" className="hover:text-white transition-colors">Behance</a>
+          <div className="flex items-center gap-2 border-l border-white/10 pl-8"><ShieldCheck size={10}/> SECURE</div>
         </div>
       </footer>
     </div>
