@@ -3,7 +3,7 @@ import { motion, AnimatePresence, useScroll, useSpring } from 'framer-motion';
 import { 
   ArrowUpRight, Menu, X, ArrowLeft, Search, 
   Facebook, Youtube, Mic, ShieldCheck, Hash, 
-  Filter, Plus, ChevronUp, Home, ArrowRight, ChevronRight, Layers
+  Filter, Plus, ChevronUp, Home, ArrowRight, ChevronRight, Layers, Tag
 } from 'lucide-react';
 
 // Firebase 核心模組
@@ -45,9 +45,9 @@ const renderMarkdown = (text) => {
 };
 
 /**
- * 🛠️ CMS 管理員發文後台 (支援動態分類與子分類)
+ * 🛠️ CMS 管理員發文後台 (支援下拉建議 + 手動輸入)
  */
-const CMSDashboard = ({ user, setView, existingStructure }) => {
+const CMSDashboard = ({ user, setView, existingStructure, allTags }) => {
   const [title, setTitle] = useState('');
   const [category, setCategory] = useState('');
   const [subCategory, setSubCategory] = useState('');
@@ -55,9 +55,7 @@ const CMSDashboard = ({ user, setView, existingStructure }) => {
   const [tagsInput, setTagsInput] = useState('');
   const [loading, setLoading] = useState(false);
 
-  // 取得現有的主分類清單供建議使用
   const existingCategories = Object.keys(existingStructure);
-  // 根據目前輸入的主分類，取得對應的子分類建議
   const existingSubCategories = existingStructure[category] || [];
 
   const handlePublish = async (e) => {
@@ -75,7 +73,7 @@ const CMSDashboard = ({ user, setView, existingStructure }) => {
         publishDate: Timestamp.now(),
         authorEmail: user.email
       });
-      alert('發布成功！新分類已自動建立。');
+      alert('發布成功！');
       setView({ type: 'home' });
     } catch (err) {
       alert('發布失敗。');
@@ -84,60 +82,68 @@ const CMSDashboard = ({ user, setView, existingStructure }) => {
     }
   };
 
+  const addTag = (tag) => {
+    const current = tagsInput.split(',').map(t => t.trim()).filter(t => t !== '');
+    if (!current.includes(tag)) {
+      setTagsInput([...current, tag].join(', '));
+    }
+  };
+
   return (
     <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} className="pt-32 px-8 md:px-24 max-w-4xl mx-auto pb-40 text-white">
       <div className="flex justify-between items-end mb-16 border-b border-white/10 pb-8">
-        <h2 className="text-4xl font-serif italic">New Creation.</h2>
+        <h2 className="text-4xl font-serif italic">New Archive.</h2>
         <button onClick={() => setView({ type: 'home' })} className="text-white/30 text-[10px] tracking-widest hover:text-white uppercase">取消</button>
       </div>
       <form onSubmit={handlePublish} className="space-y-12">
         <div className="space-y-2">
-          <label className="text-[10px] uppercase tracking-widest text-white/30">文章標題</label>
-          <input required className="w-full bg-transparent border-b border-white/10 py-2 text-xl font-serif outline-none focus:border-white transition-all" value={title} onChange={e => setTitle(e.target.value)} />
+          <label className="text-[10px] uppercase tracking-widest text-white/30 ml-1">文章標題</label>
+          <input required className="w-full bg-transparent border-b border-white/10 py-4 text-3xl font-serif outline-none focus:border-white transition-all" value={title} onChange={e => setTitle(e.target.value)} placeholder="Enter title..." />
         </div>
 
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-10">
-          <div className="space-y-2">
-            <label className="text-[10px] uppercase tracking-widest text-white/30">主分類 (可直接輸入新名稱)</label>
-            <input 
-              required
-              list="categories-list"
-              className="w-full bg-transparent border-b border-white/10 py-2 text-lg outline-none focus:border-white"
-              value={category}
-              onChange={e => setCategory(e.target.value)}
-              placeholder="例如：校園生活"
-            />
-            <datalist id="categories-list">
-              {existingCategories.map(c => <option key={c} value={c} />)}
-            </datalist>
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-12">
+          {/* 主分類：輸入 + 下拉建議 */}
+          <div className="space-y-4">
+            <label className="text-[10px] uppercase tracking-widest text-white/30 ml-1">主分類</label>
+            <input required className="w-full bg-transparent border-b border-white/10 py-2 text-lg outline-none focus:border-white" value={category} onChange={e => setCategory(e.target.value)} placeholder="輸入或選取分類" />
+            <div className="flex flex-wrap gap-2">
+              {existingCategories.map(c => (
+                <button key={c} type="button" onClick={() => setCategory(c)} className="text-[9px] px-3 py-1 rounded-full border border-white/10 hover:border-white/40 transition-colors uppercase tracking-widest">{c}</button>
+              ))}
+            </div>
           </div>
-          <div className="space-y-2">
-            <label className="text-[10px] uppercase tracking-widest text-white/30">子分類 (可選，可自創)</label>
-            <input 
-              list="subcategories-list"
-              className="w-full bg-transparent border-b border-white/10 py-2 text-lg outline-none focus:border-white"
-              value={subCategory}
-              onChange={e => setSubCategory(e.target.value)}
-              placeholder="例如：大四紀錄"
-            />
-            <datalist id="subcategories-list">
-              {existingSubCategories.map(s => <option key={s} value={s} />)}
-            </datalist>
+
+          {/* 子分類：輸入 + 下拉建議 */}
+          <div className="space-y-4">
+            <label className="text-[10px] uppercase tracking-widest text-white/30 ml-1">子分類</label>
+            <input className="w-full bg-transparent border-b border-white/10 py-2 text-lg outline-none focus:border-white" value={subCategory} onChange={e => setSubCategory(e.target.value)} placeholder="輸入或選取子分類" />
+            <div className="flex flex-wrap gap-2">
+              {existingSubCategories.map(s => (
+                <button key={s} type="button" onClick={() => setSubCategory(s)} className="text-[9px] px-3 py-1 rounded-full border border-white/10 hover:border-white/40 transition-colors uppercase tracking-widest">{s}</button>
+              ))}
+            </div>
           </div>
         </div>
 
-        <div className="space-y-2">
-          <label className="text-[10px] uppercase tracking-widest text-white/30">標籤 Hashtags (逗號分隔)</label>
-          <input className="w-full bg-transparent border-b border-white/10 py-2 text-sm outline-none focus:border-white text-white/60" placeholder="例如: 筆記, 2026, 靈感" value={tagsInput} onChange={e => setTagsInput(e.target.value)} />
+        {/* Hashtags：輸入 + 歷史建議 */}
+        <div className="space-y-4">
+          <label className="text-[10px] uppercase tracking-widest text-white/30 ml-1">標籤 Hashtags (逗號分隔)</label>
+          <input className="w-full bg-transparent border-b border-white/10 py-2 text-sm outline-none focus:border-white text-white/70" placeholder="例如: 筆記, 靈感" value={tagsInput} onChange={e => setTagsInput(e.target.value)} />
+          <div className="flex flex-wrap gap-2">
+            <span className="text-[9px] text-white/20 uppercase tracking-widest flex items-center gap-1 self-center mr-2"><Tag size={10}/> 常用:</span>
+            {allTags.filter(t => t !== 'All' && !existingCategories.includes(t)).slice(0, 8).map(tag => (
+              <button key={tag} type="button" onClick={() => addTag(tag)} className="text-[9px] px-3 py-1 rounded-full bg-white/5 hover:bg-white/10 text-white/40 hover:text-white transition-all italic">#{tag}</button>
+            ))}
+          </div>
         </div>
 
-        <div className="space-y-2">
-          <label className="text-[10px] uppercase tracking-widest text-white/30">內容 (Markdown)</label>
-          <textarea required rows={10} className="w-full bg-white/5 border border-white/5 p-8 rounded-3xl text-white/80 font-mono text-sm leading-relaxed outline-none focus:border-white/20" value={content} onChange={e => setContent(e.target.value)} />
+        <div className="space-y-2 pt-4">
+          <label className="text-[10px] uppercase tracking-widest text-white/30 ml-1">內容 (Markdown)</label>
+          <textarea required rows={10} className="w-full bg-black/10 border border-white/5 p-8 rounded-3xl text-white/80 font-mono text-sm leading-relaxed outline-none focus:border-white/20" value={content} onChange={e => setContent(e.target.value)} />
         </div>
 
-        <button disabled={loading} type="submit" className="w-full bg-white text-[#368C84] py-8 rounded-full font-bold uppercase tracking-[0.5em] hover:scale-[0.98] transition-all shadow-2xl">
-          {loading ? "處理中..." : "確認並發布"}
+        <button disabled={loading} type="submit" className="w-full bg-white text-[#368C84] py-8 rounded-full font-bold uppercase tracking-[0.5em] hover:scale-[0.98] transition-all shadow-2xl flex items-center justify-center gap-4">
+          {loading ? "處理中..." : <><Plus size={20}/> 確認發布</>}
         </button>
       </form>
     </motion.div>
@@ -185,14 +191,12 @@ export default function App() {
     return () => window.removeEventListener('scroll', handleScroll);
   }, [lastScrollY]);
 
-  // 動態建立分類與子分類的階層對照表
   const categoryStructure = useMemo(() => {
     const structure = {};
     articles.forEach(art => {
       if (!structure[art.category]) structure[art.category] = new Set();
       if (art.subCategory) structure[art.category].add(art.subCategory);
     });
-    // 轉回 Array 方便渲染
     const final = {};
     Object.keys(structure).forEach(cat => {
       final[cat] = Array.from(structure[cat]);
@@ -200,10 +204,11 @@ export default function App() {
     return final;
   }, [articles]);
 
-  const allMainCategories = ['All', ...Object.keys(categoryStructure)];
-  const currentSubCategories = activeCategory !== 'All' ? ['All', ...categoryStructure[activeCategory]] : [];
+  const allTagsAndCats = useMemo(() => {
+    const tags = new Set(articles.flatMap(art => [art.category, ...(art.tags || [])]));
+    return ['All', ...Array.from(tags)].filter(Boolean);
+  }, [articles]);
 
-  // 篩選邏輯：支援主分類 + 子分類 + 搜尋
   const filteredArticles = useMemo(() => {
     return articles.filter(art => {
       const matchesMain = activeCategory === 'All' || art.category === activeCategory;
@@ -244,8 +249,8 @@ export default function App() {
             <div className="max-w-4xl mx-auto">
               <input 
                 autoFocus
-                placeholder="搜尋標題、內容或標籤..." 
-                className="w-full bg-white/10 border border-white/20 backdrop-blur-xl p-6 rounded-full text-xl outline-none focus:border-white/40 transition-all font-serif text-white placeholder-white/30 shadow-2xl"
+                placeholder="搜尋任何內容..." 
+                className="w-full bg-white/10 border border-white/20 backdrop-blur-xl p-6 rounded-full text-xl outline-none focus:border-white/40 transition-all font-serif text-white placeholder-white/30"
                 value={searchQuery}
                 onChange={e => setSearchQuery(e.target.value)}
               />
@@ -274,7 +279,7 @@ export default function App() {
               ))}
             </div>
 
-            <div className="absolute bottom-12 flex flex-col items-center gap-6">
+            <div className="absolute bottom-12 flex flex-col items-center gap-8">
               <div className="flex gap-10 text-white/30">
                 <a href="#" className="hover:text-white transition-colors"><Facebook size={24}/></a>
                 <a href="#" className="hover:text-white transition-colors"><Youtube size={24}/></a>
@@ -301,10 +306,9 @@ export default function App() {
                 {activeCategory === 'All' ? <>美學<br/>動態<br/>視覺</> : activeCategory}
               </motion.h1>
               
-              {/* 第一層：主分類 */}
               <div className="flex items-center gap-4 overflow-x-auto py-4 mb-4 scrollbar-hide border-b border-white/5 sticky top-0 bg-[#368C84]/90 backdrop-blur-lg z-50">
                 <span className="text-[9px] uppercase tracking-widest text-white/20 flex-shrink-0 flex items-center gap-2"><Filter size={10}/> Category</span>
-                {allMainCategories.map(cat => (
+                {['All', ...Object.keys(categoryStructure)].map(cat => (
                   <button 
                     key={cat} 
                     onClick={() => { setActiveCategory(cat); setActiveSubCategory('All'); }}
@@ -315,11 +319,10 @@ export default function App() {
                 ))}
               </div>
 
-              {/* 第二層：子分類 (僅在選中主分類且有子分類時顯示) */}
-              {currentSubCategories.length > 1 && (
+              {activeCategory !== 'All' && categoryStructure[activeCategory]?.length > 0 && (
                 <motion.div initial={{ opacity: 0, y: -10 }} animate={{ opacity: 1, y: 0 }} className="flex items-center gap-3 overflow-x-auto py-2 mb-8 scrollbar-hide">
                   <span className="text-[9px] uppercase tracking-widest text-white/20 flex-shrink-0 flex items-center gap-2 ml-4"><Layers size={10}/> Sub</span>
-                  {currentSubCategories.map(sub => (
+                  {['All', ...categoryStructure[activeCategory]].map(sub => (
                     <button 
                       key={sub} 
                       onClick={() => setActiveSubCategory(sub)}
@@ -334,7 +337,7 @@ export default function App() {
 
             <div className="grid grid-cols-1 border-t border-white/10">
               {filteredArticles.length === 0 ? (
-                <div className="py-40 text-white/10 font-serif italic text-3xl text-center border border-dashed border-white/5 mt-10 rounded-[60px]">Archive is empty.</div>
+                <div className="py-40 text-white/10 font-serif italic text-3xl text-center border border-dashed border-white/5 mt-10 rounded-[60px]">Empty.</div>
               ) : (
                 filteredArticles.map((art, index) => (
                   <motion.div 
@@ -354,8 +357,8 @@ export default function App() {
                       </div>
                       <h3 className="text-4xl md:text-7xl font-serif group-hover:italic transition-all duration-1000 leading-none text-white">{art.title}</h3>
                     </div>
-                    <div className="mt-8 md:mt-0">
-                      <div className="w-14 h-14 rounded-full border border-white/10 flex items-center justify-center group-hover:bg-white group-hover:text-[#368C84] transition-all duration-700">
+                    <div className="mt-8 md:mt-0 flex items-center gap-6">
+                      <div className="w-14 h-14 rounded-full border border-white/10 flex items-center justify-center group-hover:bg-white group-hover:text-[#368C84] transition-all duration-700 text-white">
                         <ArrowUpRight size={24} />
                       </div>
                     </div>
@@ -388,10 +391,9 @@ export default function App() {
                 <h1 className="text-5xl md:text-[7.5vw] font-bold font-serif mb-20 leading-[1.05] tracking-tighter italic text-white">{articles.find(a => a.id === view.id).title}</h1>
                 <div className="text-xl md:text-2xl leading-relaxed text-white/70 space-y-12 font-serif max-w-3xl mb-40 article-content" dangerouslySetInnerHTML={{ __html: renderMarkdown(articles.find(a => a.id === view.id).content) }} />
                 
-                {/* 底部導航 */}
                 <div className="border-t border-white/10 pt-20 flex flex-col md:flex-row justify-between items-start gap-12">
                    <div className="max-w-xs">
-                     <p className="text-[10px] uppercase tracking-[0.5em] text-white/20 mb-4 italic">Next Reading</p>
+                     <p className="text-[10px] uppercase tracking-[0.5em] text-white/20 mb-4 italic">Next Up</p>
                      {articles.filter(a => a.id !== view.id)[0] && (
                        <div onClick={() => { setView({type:'article', id: articles.filter(a => a.id !== view.id)[0].id}); window.scrollTo(0,0); }} className="group cursor-pointer">
                          <h4 className="text-2xl font-serif group-hover:italic transition-all">{articles.filter(a => a.id !== view.id)[0].title}</h4>
@@ -406,7 +408,7 @@ export default function App() {
           </motion.article>
         )}
 
-        {view.type === 'cms' && isAdmin && <CMSDashboard user={user} setView={setView} existingStructure={categoryStructure} />}
+        {view.type === 'cms' && isAdmin && <CMSDashboard user={user} setView={setView} existingStructure={categoryStructure} allTags={allTagsAndCats} />}
       </AnimatePresence>
 
       <AnimatePresence>
@@ -422,9 +424,9 @@ export default function App() {
       </AnimatePresence>
 
       <footer className="p-12 md:p-24 border-t border-white/5 flex flex-col md:flex-row justify-between items-center gap-8 text-[8px] text-white/10 uppercase tracking-[0.6em] font-light">
-        <span className="cursor-pointer" onClick={() => setView({type:'home'})}>© 2026 CURTIS CHEN — DESIGN & THOUGHTS</span>
-        <div className="flex items-center gap-8">
-          <div className="flex items-center gap-2 italic"><ShieldCheck size={10}/> Authenticated Admin</div>
+        <span className="cursor-pointer" onClick={() => setView({type:'home'})}>© 2026 CURTIS CHEN — ARCHIVE OF THOUGHTS</span>
+        <div className="flex items-center gap-8 italic">
+          <ShieldCheck size={10}/> ADMIN AUTHENTICATED
         </div>
       </footer>
     </div>
