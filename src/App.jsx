@@ -25,7 +25,6 @@ const firebaseConfig = {
 };
 
 const ADMIN_EMAIL = "curtischentp6@gmail.com"; 
-const MENU_ITEMS = ["關於我", "校園生活", "隨想札記", "時事觀察", "音樂見聞", "讀書心得"];
 
 const app = getApps().length === 0 ? initializeApp(firebaseConfig) : getApp();
 const auth = getAuth(app);
@@ -40,7 +39,7 @@ const renderMarkdown = (text) => {
   if (!text) return '';
   return text
     .replace(/^# (.*$)/gim, '<h1 class="text-4xl md:text-6xl font-bold mt-12 mb-8 font-serif text-white leading-tight">$1</h1>')
-    .replace(/^## (.*$)/gim, '<h2 class="text-2xl md:text-3xl font-bold mt-10 mb-6 font-serif text-white">$2</h2>')
+    .replace(/^## (.*$)/gim, '<h2 class="text-2xl md:text-3xl font-bold mt-10 mb-6 font-serif text-white">$1</h2>')
     .replace(/\*\*(.*)\*\*/gim, '<strong class="text-white font-bold">$1</strong>')
     .replace(/\n/g, '<br/>');
 };
@@ -48,9 +47,9 @@ const renderMarkdown = (text) => {
 /**
  * 🛠️ CMS 管理員發文與編輯後台
  */
-const CMSDashboard = ({ user, setView, editData, showMessage }) => {
+const CMSDashboard = ({ user, setView, editData, showMessage, menuList }) => {
   const [title, setTitle] = useState(editData?.title || '');
-  const [mainMenu, setMainMenu] = useState(editData?.mainMenu || MENU_ITEMS[1]);
+  const [mainMenu, setMainMenu] = useState(editData?.mainMenu || menuList[1] || '');
   const [pathInput, setPathInput] = useState(editData?.subPath?.join('/') || '');
   const [content, setContent] = useState(editData?.content || '');
   const [tagsInput, setTagsInput] = useState(editData?.tags?.join(', ') || '');
@@ -63,67 +62,67 @@ const CMSDashboard = ({ user, setView, editData, showMessage }) => {
     const subPath = pathInput.split('/').map(p => p.trim()).filter(p => p !== '');
 
     try {
+      const articleData = {
+        title,
+        mainMenu: mainMenu.trim() || "未分類",
+        subPath,
+        content,
+        tags,
+        authorEmail: user.email
+      };
+
       if (editData?.id) {
         const articleRef = doc(db, 'artifacts', appId, 'public', 'data', 'articles', editData.id);
-        await updateDoc(articleRef, {
-          title, mainMenu, subPath, content, tags,
-          lastModified: Timestamp.now()
-        });
-        showMessage('文章已成功更新');
+        await updateDoc(articleRef, { ...articleData, lastModified: Timestamp.now() });
+        showMessage('文章已同步更新');
       } else {
-        await addDoc(collection(db, 'artifacts', appId, 'public', 'data', 'articles'), {
-          title, mainMenu, subPath, content, tags,
-          publishDate: Timestamp.now(),
-          authorEmail: user.email
+        await addDoc(collection(db, 'artifacts', appId, 'public', 'data', 'articles'), { 
+          ...articleData, publishDate: Timestamp.now() 
         });
-        showMessage('新內容已發布');
+        showMessage('內容發布成功');
       }
       setView({ type: 'home' });
     } catch (err) {
-      showMessage('操作失敗，請檢查權限');
+      showMessage('操作失敗');
     } finally {
       setLoading(false);
     }
   };
 
   return (
-    <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} className="pt-32 px-8 md:px-24 max-w-4xl mx-auto pb-40 text-white">
+    <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} className="pt-32 px-8 md:px-24 max-w-4xl mx-auto pb-40 text-white font-sans">
       <div className="flex justify-between items-end mb-16 border-b border-white/10 pb-8">
-        <h2 className="text-4xl font-serif italic">{editData ? 'Edit Archive.' : 'New Archive.'}</h2>
+        <h2 className="text-4xl font-serif italic">{editData ? 'Edit Post.' : 'New Post.'}</h2>
         <button onClick={() => setView({ type: 'home' })} className="text-white/30 text-[10px] tracking-widest hover:text-white uppercase cursor-pointer">取消</button>
       </div>
       <form onSubmit={handlePublish} className="space-y-12">
         <div className="space-y-4">
-          <label className="text-[10px] uppercase tracking-widest text-white/40">1. 文章分類位置</label>
-          <div className="flex flex-wrap gap-3">
-            {MENU_ITEMS.map(m => (
+          <label className="text-[10px] uppercase tracking-widest text-white/40 font-bold">1. 選單位置 (可自定義)</label>
+          <input required className="w-full bg-transparent border-b border-white/10 py-3 text-2xl font-serif outline-none focus:border-white text-white" value={mainMenu} onChange={(e) => setMainMenu(e.target.value)} />
+          <div className="flex flex-wrap gap-2">
+            {menuList.map(m => (
               <button key={m} type="button" onClick={() => setMainMenu(m)}
-                className={`px-5 py-2 rounded-full text-[10px] tracking-widest transition-all border cursor-pointer ${mainMenu === m ? 'bg-white text-[#368C84] border-white font-bold' : 'border-white/10 text-white/40 hover:border-white/40'}`}
+                className={`px-4 py-1.5 rounded-full text-[9px] tracking-widest transition-all border cursor-pointer ${mainMenu === m ? 'bg-white text-[#368C84] border-white' : 'border-white/10 text-white/30'}`}
               >
                 {m}
               </button>
             ))}
           </div>
         </div>
-
+        <div className="space-y-4">
+          <label className="text-[10px] uppercase tracking-widest text-white/40 font-bold">2. 子路徑 (用 / 分隔)</label>
+          <input className="w-full bg-transparent border-b border-white/10 py-2 text-lg outline-none focus:border-white text-white" value={pathInput} onChange={e => setPathInput(e.target.value)} placeholder="大一 / 上學期" />
+        </div>
         <div className="space-y-2">
-          <label className="text-[10px] uppercase tracking-widest text-white/40">2. 設定路徑 (使用 / 分隔子分類)</label>
-          <input className="w-full bg-transparent border-b border-white/10 py-3 text-lg outline-none focus:border-white text-white" 
-            value={pathInput} onChange={e => setPathInput(e.target.value)} placeholder="例如：大一 / 上學期 / 筆記" />
+          <label className="text-[10px] uppercase tracking-widest text-white/40 font-bold">3. 標題</label>
+          <input required className="w-full bg-transparent border-b border-white/10 py-4 text-3xl font-serif outline-none focus:border-white text-white" value={title} onChange={e => setTitle(e.target.value)} />
         </div>
-
         <div className="space-y-2">
-          <label className="text-[10px] uppercase tracking-widest text-white/40">3. 標題</label>
-          <input required className="w-full bg-transparent border-b border-white/10 py-4 text-3xl font-serif outline-none focus:border-white text-white" value={title} onChange={e => setTitle(e.target.value)} placeholder="Title..." />
+          <label className="text-[10px] uppercase tracking-widest text-white/40 font-bold">4. 內容 (Markdown)</label>
+          <textarea required rows={12} className="w-full bg-black/10 border border-white/5 p-8 rounded-3xl text-white/80 font-mono text-sm outline-none focus:border-white/20 transition-all" value={content} onChange={e => setContent(e.target.value)} />
         </div>
-
-        <div className="space-y-2 pt-4">
-          <label className="text-[10px] uppercase tracking-widest text-white/40">4. 內容 (Markdown)</label>
-          <textarea required rows={10} className="w-full bg-black/10 border border-white/5 p-8 rounded-3xl text-white/80 font-mono text-sm leading-relaxed outline-none focus:border-white/20 transition-all" value={content} onChange={e => setContent(e.target.value)} />
-        </div>
-
         <button disabled={loading} type="submit" className="w-full bg-white text-[#368C84] py-8 rounded-full font-bold uppercase tracking-[0.5em] hover:scale-[0.98] transition-all shadow-2xl cursor-pointer">
-          {loading ? "處理中..." : editData ? "更新存檔" : "確認發布"}
+          {loading ? "Processing..." : "確認發布"}
         </button>
       </form>
     </motion.div>
@@ -136,12 +135,10 @@ export default function App() {
   const [isSearchOpen, setIsSearchOpen] = useState(false);
   const [searchQuery, setSearchQuery] = useState('');
   const [articles, setArticles] = useState([]);
-  
   const [activeMenu, setActiveMenu] = useState('All');
   const [activePath, setActivePath] = useState([]); 
-  
   const [user, setUser] = useState(null);
-  const [userBookmarks, setUserBookmarks] = useState([]); // 儲存收藏的文章 ID
+  const [userBookmarks, setUserBookmarks] = useState([]); 
   const [showHeader, setShowHeader] = useState(true);
   const [lastScrollY, setLastScrollY] = useState(0);
   const [showBackToTop, setShowBackToTop] = useState(false);
@@ -157,24 +154,12 @@ export default function App() {
   }, [scrollYProgress]);
 
   const isAdmin = user && user.email === ADMIN_EMAIL;
-  
   const showMessage = (text) => {
     setMessage(text);
     setTimeout(() => setMessage(null), 3000);
   };
 
-  // 1. 初始化驗證 (匿名登入以支援書籤)
-  useEffect(() => {
-    const initAuth = async () => {
-      // 這裡假設環境會自動提供匿名登入或彈窗登入
-      onAuthStateChanged(auth, (currentUser) => {
-        setUser(currentUser);
-      });
-    };
-    initAuth();
-  }, []);
-
-  // 2. 監聽文章列表
+  useEffect(() => { onAuthStateChanged(auth, setUser); }, []);
   useEffect(() => {
     const q = collection(db, 'artifacts', appId, 'public', 'data', 'articles');
     return onSnapshot(q, (snapshot) => {
@@ -183,17 +168,16 @@ export default function App() {
     });
   }, []);
 
-  // 3. 監聽用戶書籤 (遵循規則 1 & 3)
+  const dynamicMenuItems = useMemo(() => {
+    const baseItems = ["關於我", "校園生活", "隨想札記", "時事觀察", "音樂見聞", "讀書心得"];
+    const fromArticles = new Set(articles.map(a => a.mainMenu));
+    return [...new Set([...baseItems, ...Array.from(fromArticles)])].filter(Boolean);
+  }, [articles]);
+
   useEffect(() => {
-    if (!user) {
-      setUserBookmarks([]);
-      return;
-    }
+    if (!user) { setUserBookmarks([]); return; }
     const q = collection(db, 'artifacts', appId, 'users', user.uid, 'bookmarks');
-    return onSnapshot(q, (snapshot) => {
-      const ids = snapshot.docs.map(doc => doc.id);
-      setUserBookmarks(ids);
-    }, (err) => console.error("Bookmark sync error:", err));
+    return onSnapshot(q, (snapshot) => setUserBookmarks(snapshot.docs.map(doc => doc.id)));
   }, [user]);
 
   useEffect(() => {
@@ -207,7 +191,6 @@ export default function App() {
     return () => window.removeEventListener('scroll', handleScroll);
   }, [lastScrollY]);
 
-  // 篩選邏輯
   const filteredArticles = useMemo(() => {
     return articles.filter(art => {
       const matchesMenu = activeMenu === 'All' || art.mainMenu === activeMenu;
@@ -218,7 +201,6 @@ export default function App() {
     });
   }, [articles, activeMenu, activePath, searchQuery]);
 
-  // 下一層級選項
   const currentLevelOptions = useMemo(() => {
     const options = new Set();
     articles.forEach(art => {
@@ -231,22 +213,13 @@ export default function App() {
     return Array.from(options);
   }, [articles, activeMenu, activePath]);
 
-  // 切換書籤功能 (關鍵開發)
   const toggleBookmark = async (articleId) => {
-    if (!user) {
-      showMessage('請先登入以同步書籤');
-      signInWithPopup(auth, provider);
-      return;
-    }
-
-    const bookmarkRef = doc(db, 'artifacts', appId, 'users', user.uid, 'bookmarks', articleId);
-    
+    if (!user) { showMessage('請先登入同步書籤'); signInWithPopup(auth, provider); return; }
+    const ref = doc(db, 'artifacts', appId, 'users', user.uid, 'bookmarks', articleId);
     if (userBookmarks.includes(articleId)) {
-      await deleteDoc(bookmarkRef);
-      showMessage('已從收藏中移除');
+      await deleteDoc(ref); showMessage('已取消收藏');
     } else {
-      await setDoc(bookmarkRef, { addedAt: Timestamp.now() });
-      showMessage('已加入我的書籤');
+      await setDoc(ref, { addedAt: Timestamp.now() }); showMessage('已加入書籤');
     }
   };
 
@@ -257,7 +230,7 @@ export default function App() {
     el.select();
     document.execCommand('copy');
     document.body.removeChild(el);
-    showMessage('連結已複製到剪貼簿');
+    showMessage('連結已複製');
   };
 
   return (
@@ -268,7 +241,6 @@ export default function App() {
         ::-webkit-scrollbar { width: 0px; }
       `}</style>
 
-      {/* 通知 */}
       <AnimatePresence>
         {message && (
           <motion.div initial={{ y: -50, opacity: 0 }} animate={{ y: 0, opacity: 1 }} exit={{ y: -50, opacity: 0 }} 
@@ -279,38 +251,26 @@ export default function App() {
         )}
       </AnimatePresence>
 
-      {/* 互動進度條 (新增 Hover 顯示百分比與書籤功能) */}
       <div className="fixed top-0 left-0 right-0 h-10 group z-[150] cursor-default">
         <motion.div className="h-1 bg-white origin-left shadow-[0_0_15px_rgba(255,255,255,0.4)]" style={{ scaleX }} />
         <div className="opacity-0 group-hover:opacity-100 transition-all duration-500 absolute top-2 left-0 right-0 flex justify-center pointer-events-none">
           <div className="bg-black/20 backdrop-blur-xl px-6 py-2 rounded-full flex items-center gap-6 pointer-events-auto border border-white/10 shadow-xl">
             <span className="text-[10px] font-bold tracking-[0.2em]">{percent}% READ</span>
             <div className="h-3 w-px bg-white/20" />
-            <button onClick={copyLink} title="分享連結" className="hover:text-white/60 transition-colors cursor-pointer"><Share2 size={14}/></button>
-            <button 
-              onClick={() => view.id && toggleBookmark(view.id)} 
-              title="加入書籤"
-              className={`transition-colors cursor-pointer ${view.id && userBookmarks.includes(view.id) ? 'text-white fill-white' : 'hover:text-white/60'}`}
-            >
-              <Bookmark size={14}/>
-            </button>
+            <button onClick={copyLink} className="hover:text-white/60 transition-colors cursor-pointer"><Share2 size={14}/></button>
+            <button onClick={() => view.id && toggleBookmark(view.id)} className={`transition-colors cursor-pointer ${view.id && userBookmarks.includes(view.id) ? 'text-white fill-white' : 'hover:text-white/60'}`}><Bookmark size={14}/></button>
           </div>
         </div>
       </div>
 
-      {/* 頂欄 */}
       <motion.nav animate={{ y: showHeader ? 0 : -100 }} className="fixed top-0 left-0 w-full p-8 flex justify-between items-center z-[110] mix-blend-difference">
         <div onClick={() => { setView({type:'home'}); setActiveMenu('All'); setActivePath([]); window.scrollTo(0,0); }} className="font-bold text-xl cursor-pointer tracking-tighter uppercase italic">Curtis Chen</div>
         <div className="flex items-center gap-8">
           <button onClick={() => setIsSearchOpen(!isSearchOpen)} className="hover:opacity-50 transition-all cursor-pointer"><Search size={24} color="white"/></button>
-          <button onClick={() => setIsMenuOpen(true)} className="hover:opacity-50 transition-all cursor-pointer relative">
-            <Menu size={32} color="white"/>
-            {userBookmarks.length > 0 && <span className="absolute -top-1 -right-1 w-2 h-2 bg-white rounded-full" />}
-          </button>
+          <button onClick={() => setIsMenuOpen(true)} className="hover:opacity-50 transition-all cursor-pointer relative"><Menu size={32} color="white"/></button>
         </div>
       </motion.nav>
 
-      {/* 搜尋 */}
       <AnimatePresence>
         {isSearchOpen && (
           <motion.div initial={{ opacity: 0, y: -20 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: -20 }} className="fixed top-24 left-0 w-full px-8 md:px-24 z-[105]">
@@ -321,47 +281,41 @@ export default function App() {
         )}
       </AnimatePresence>
 
-      {/* 全螢幕選單 (新增：書籤查看功能) */}
       <AnimatePresence>
         {isMenuOpen && (
-          <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} transition={transition} className="fixed inset-0 bg-[#368C84] z-[120] flex flex-col p-12">
+          <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} transition={transition} className="fixed inset-0 bg-[#368C84] z-[120] flex flex-col p-12 overflow-hidden">
             <div className="flex justify-end">
               <button onClick={() => setIsMenuOpen(false)} className="hover:rotate-90 transition-all duration-500 cursor-pointer"><X size={48} strokeWidth={1} color="white" /></button>
             </div>
-            
-            <div className="flex-grow flex flex-col items-center justify-center gap-6">
-              {MENU_ITEMS.map((item, i) => (
+            <div className="flex-grow flex flex-col items-center justify-center gap-6 overflow-y-auto py-10 scrollbar-hide">
+              {dynamicMenuItems.map((item, i) => (
                 <motion.button key={item} initial={{ y: 20, opacity: 0 }} animate={{ y: 0, opacity: 1 }} transition={{ delay: i * 0.05 }}
                   onClick={() => { setActiveMenu(item); setActivePath([]); setView({type:'home'}); setIsMenuOpen(false); window.scrollTo(0,0); }}
-                  className="text-3xl md:text-5xl font-serif hover:italic hover:scale-105 transition-all duration-500 font-light tracking-tight cursor-pointer"
+                  className="text-3xl md:text-5xl font-serif hover:italic hover:scale-105 transition-all cursor-pointer"
                 >
                   {item}
                 </motion.button>
               ))}
               <motion.button 
-                initial={{ y: 20, opacity: 0 }} animate={{ y: 0, opacity: 1 }} transition={{ delay: 0.4 }}
+                initial={{ y: 20, opacity: 0 }} animate={{ y: 0, opacity: 1 }} transition={{ delay: 0.5 }}
                 onClick={() => { setView({type:'bookmarks'}); setIsMenuOpen(false); window.scrollTo(0,0); }}
-                className="mt-8 text-sm uppercase tracking-[0.4em] flex items-center gap-3 border border-white/20 px-8 py-3 rounded-full hover:bg-white hover:text-[#368C84] transition-all cursor-pointer"
+                className="mt-8 text-[10px] uppercase tracking-[0.4em] flex items-center gap-3 border border-white/20 px-10 py-4 rounded-full hover:bg-white hover:text-[#368C84] transition-all cursor-pointer font-bold shadow-xl"
               >
                 <Bookmark size={14} fill={userBookmarks.length > 0 ? "currentColor" : "none"} /> 我的書籤 ({userBookmarks.length})
               </motion.button>
             </div>
-
             <div className="flex flex-col md:flex-row justify-between items-end gap-12 border-t border-white/10 pt-12 pb-8">
               <div className="flex gap-10 text-white/30">
                 <a href="#" className="hover:text-white transition-colors"><Facebook size={24}/></a>
                 <a href="#" className="hover:text-white transition-colors"><Youtube size={24}/></a>
                 <a href="#" className="hover:text-white transition-colors"><Mic size={24}/></a>
               </div>
-              
               <div className="flex flex-col items-end gap-6">
                 <div className="flex gap-4 items-center">
                   {isAdmin ? (
                     <button onClick={() => { setEditingArticle(null); setView({type:'cms'}); setIsMenuOpen(false); }} className="text-[10px] uppercase tracking-[0.4em] text-white/40 hover:text-white border border-white/10 px-8 py-2 rounded-full cursor-pointer">Admin CMS</button>
                   ) : (
-                    <button onClick={() => signInWithPopup(auth, provider).then(() => setIsMenuOpen(false))} className="text-[10px] uppercase tracking-[0.4em] text-white/20 hover:text-white transition-colors cursor-pointer italic underline">
-                      {user ? `Account: ${user.email}` : 'Login to Sync'}
-                    </button>
+                    <button onClick={() => signInWithPopup(auth, provider).then(() => setIsMenuOpen(false))} className="text-[10px] uppercase tracking-[0.4em] text-white/20 hover:text-white transition-colors cursor-pointer italic underline">{user ? `User: ${user.email}` : 'Login'}</button>
                   )}
                   {user && <button onClick={() => signOut(auth)} className="text-[10px] text-red-400/50 hover:text-red-400 uppercase tracking-widest cursor-pointer">Logout</button>}
                 </div>
@@ -372,18 +326,16 @@ export default function App() {
       </AnimatePresence>
 
       <AnimatePresence mode="wait">
-        {/* 首頁視圖 */}
         {view.type === 'home' && (
           <motion.main key="home" initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} className="pt-40 px-8 md:px-24 pb-40">
             <div className="mb-24">
               <motion.h1 initial={{ y: 40, opacity: 0 }} animate={{ y: 0, opacity: 1 }} transition={transition} className="text-7xl md:text-[11vw] font-bold leading-[0.85] mb-20 uppercase tracking-tighter font-serif text-white">
                 {activeMenu === 'All' ? <>美學<br/>動態<br/>視覺</> : activeMenu}
               </motion.h1>
-              
               <div className="space-y-4">
                 <div className="flex items-center gap-4 overflow-x-auto py-4 border-b border-white/5 sticky top-0 bg-[#368C84]/90 backdrop-blur-lg z-50 scrollbar-hide">
                   <span className="text-[9px] uppercase tracking-widest text-white/20 flex-shrink-0 flex items-center gap-2"><Bookmark size={10}/> Section</span>
-                  {['All', ...MENU_ITEMS].map(m => (
+                  {['All', ...dynamicMenuItems].map(m => (
                     <button key={m} onClick={() => { setActiveMenu(m); setActivePath([]); }}
                       className={`px-6 py-2 rounded-full text-[10px] uppercase tracking-widest transition-all border whitespace-nowrap cursor-pointer ${activeMenu === m ? 'bg-white text-[#368C84] border-white font-bold' : 'border-white/10 text-white/40 hover:text-white'}`}
                     >
@@ -391,7 +343,6 @@ export default function App() {
                     </button>
                   ))}
                 </div>
-
                 {(activePath.length > 0 || currentLevelOptions.length > 0) && (
                   <motion.div initial={{ opacity: 0, y: -10 }} animate={{ opacity: 1, y: 0 }} className="flex flex-col gap-3 ml-4">
                     {activePath.length > 0 && (
@@ -407,7 +358,7 @@ export default function App() {
                         <Layers size={10} className="text-white/20 flex-shrink-0" />
                         {currentLevelOptions.map(opt => (
                           <button key={opt} onClick={() => setActivePath([...activePath, opt])}
-                            className="px-4 py-1.5 rounded-full text-[9px] uppercase tracking-widest transition-all border border-white/10 text-white/30 hover:bg-white/10 hover:text-white whitespace-nowrap cursor-pointer"
+                            className="px-4 py-1.5 rounded-full text-[9px] uppercase tracking-widest transition-all border border-white/10 text-white/30 hover:text-white whitespace-nowrap cursor-pointer"
                           >
                             {opt}
                           </button>
@@ -418,10 +369,9 @@ export default function App() {
                 )}
               </div>
             </div>
-
             <div className="grid grid-cols-1 border-t border-white/10">
               {filteredArticles.length === 0 ? (
-                <div className="py-40 text-white/10 font-serif italic text-3xl text-center border border-dashed border-white/5 mt-10 rounded-[60px]">Archive is empty.</div>
+                <div className="py-40 text-white/10 font-serif italic text-3xl text-center border border-dashed border-white/5 mt-10 rounded-[60px]">Empty.</div>
               ) : (
                 filteredArticles.map((art, index) => (
                   <motion.div key={art.id} initial={{ opacity: 0, x: -20 }} whileInView={{ opacity: 1, x: 0 }} viewport={{ once: true }} transition={{ delay: index * 0.05, ...transition }}
@@ -429,27 +379,16 @@ export default function App() {
                     className="group py-16 border-b border-white/5 flex flex-col md:flex-row justify-between items-start md:items-center cursor-pointer hover:bg-white/[0.02] transition-all px-8 -mx-8"
                   >
                     <div className="flex-1 space-y-4">
-                      <div className="flex items-center gap-3 flex-wrap text-[10px] uppercase tracking-widest text-white/40 font-light italic">
+                      <div className="flex items-center gap-3 flex-wrap text-[10px] uppercase tracking-widest text-white/40 italic font-light">
                         <span>{art.mainMenu}</span>
                         {art.subPath && art.subPath.map((p, i) => <span key={i} className="flex items-center gap-1 opacity-60"><ChevronRight size={10}/> {p}</span>)}
-                        <div className="flex gap-2 ml-2">
-                          {art.tags?.map(t => <span key={t} className="text-[9px] text-white/20 bg-white/5 px-2 py-0.5 rounded italic">#{t}</span>)}
-                          {userBookmarks.includes(art.id) && <Bookmark size={10} fill="currentColor" className="text-white/40" />}
-                        </div>
+                        <div className="flex gap-2 ml-2">{art.tags?.map(t => <span key={t} className="text-[9px] text-white/20 bg-white/5 px-2 py-0.5 rounded">#{t}</span>)}</div>
                       </div>
-                      <h3 className="text-4xl md:text-7xl font-serif group-hover:italic transition-all duration-1000 leading-none text-white">{art.title}</h3>
+                      <h3 className="text-4xl md:text-7xl font-serif group-hover:italic transition-all duration-1000 text-white leading-none">{art.title}</h3>
                     </div>
                     <div className="mt-8 md:mt-0 flex items-center gap-4">
-                      {isAdmin && (
-                        <button onClick={(e) => { e.stopPropagation(); setEditingArticle(art); setView({type:'cms'}); }} 
-                          className="p-3 rounded-full border border-white/10 hover:bg-white hover:text-[#368C84] transition-all cursor-pointer text-white"
-                        >
-                          <Edit3 size={16} />
-                        </button>
-                      )}
-                      <div className="w-14 h-14 rounded-full border border-white/10 flex items-center justify-center group-hover:bg-white group-hover:text-[#368C84] transition-all duration-700">
-                        <ArrowUpRight size={24} color="white" className="group-hover:stroke-[#368C84]" />
-                      </div>
+                      {isAdmin && <button onClick={(e) => { e.stopPropagation(); setEditingArticle(art); setView({type:'cms'}); }} className="p-3 rounded-full border border-white/10 hover:bg-white hover:text-[#368C84] transition-all cursor-pointer"><Edit3 size={16} /></button>}
+                      <div className="w-14 h-14 rounded-full border border-white/10 flex items-center justify-center group-hover:bg-white group-hover:text-[#368C84] transition-all duration-700 text-white"><ArrowUpRight size={24} /></div>
                     </div>
                   </motion.div>
                 ))
@@ -458,35 +397,23 @@ export default function App() {
           </motion.main>
         )}
 
-        {/* 書籤視圖 (新增開發項目) */}
         {view.type === 'bookmarks' && (
           <motion.main key="bookmarks" initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} className="pt-40 px-8 md:px-24 pb-40 min-h-screen">
              <div className="mb-24 border-b border-white/10 pb-12">
-               <button onClick={() => setView({type:'home'})} className="flex items-center gap-2 text-[10px] uppercase tracking-widest text-white/40 hover:text-white mb-8 transition-colors cursor-pointer">
-                 <ArrowLeft size={12}/> Back to Gallery
-               </button>
-               <h1 className="text-6xl md:text-8xl font-serif font-light italic text-white">My Bookmarks.</h1>
-               <p className="text-[10px] uppercase tracking-[0.4em] text-white/30 mt-4">Synced across your devices</p>
+               <button onClick={() => setView({type:'home'})} className="flex items-center gap-2 text-[10px] uppercase tracking-widest text-white/40 hover:text-white mb-8 cursor-pointer transition-all"><ArrowLeft size={12}/> Back to Gallery</button>
+               <h1 className="text-6xl md:text-8xl font-serif italic text-white">My Bookmarks.</h1>
              </div>
-             
              <div className="grid grid-cols-1">
                {articles.filter(a => userBookmarks.includes(a.id)).length === 0 ? (
-                 <div className="py-40 text-center border border-dashed border-white/10 rounded-[60px]">
-                   <p className="text-2xl font-serif italic text-white/10">No saved items yet.</p>
-                 </div>
+                 <div className="py-40 text-center text-white/10 font-serif italic">No saved items.</div>
                ) : (
                  articles.filter(a => userBookmarks.includes(a.id)).map((art, index) => (
-                   <motion.div key={art.id} initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: index * 0.1 }}
-                    onClick={() => setView({type:'article', id: art.id})}
-                    className="group py-12 border-b border-white/5 flex justify-between items-center cursor-pointer hover:bg-white/[0.02] px-8 -mx-8"
-                   >
+                   <motion.div key={art.id} onClick={() => setView({type:'article', id: art.id})} className="group py-12 border-b border-white/5 flex justify-between items-center cursor-pointer hover:bg-white/[0.02] px-8 -mx-8 transition-all">
                      <div>
-                       <p className="text-[9px] uppercase tracking-widest text-white/40 mb-2">{art.mainMenu} {art.subPath?.length > 0 && ` / ${art.subPath.join(' / ')}`}</p>
+                       <p className="text-[9px] uppercase tracking-widest text-white/40 mb-3 italic">{art.mainMenu} / {art.subPath?.join(' / ')}</p>
                        <h3 className="text-3xl md:text-5xl font-serif text-white group-hover:italic transition-all">{art.title}</h3>
                      </div>
-                     <button onClick={(e) => { e.stopPropagation(); toggleBookmark(art.id); }} className="p-4 hover:text-red-400 transition-colors cursor-pointer">
-                       <X size={20} />
-                     </button>
+                     <button onClick={(e) => { e.stopPropagation(); toggleBookmark(art.id); }} className="p-4 hover:text-red-400 cursor-pointer transition-colors"><X size={20} /></button>
                    </motion.div>
                  ))
                )}
@@ -494,44 +421,60 @@ export default function App() {
           </motion.main>
         )}
 
-        {/* 文章視圖 */}
         {view.type === 'article' && (
           <motion.article key="article" initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} transition={transition} className="pt-40 px-8 md:px-24 max-w-5xl mx-auto pb-60">
             <div className="flex justify-between items-center mb-16">
-              <button onClick={() => setView({ type: 'home' })} className="flex items-center gap-3 text-white/30 uppercase text-[10px] tracking-[0.5em] hover:text-white transition-colors cursor-pointer">
-                <ArrowLeft size={14} /> Back
-              </button>
-              
+              <div className="flex items-center gap-2 text-[10px] uppercase tracking-widest text-white/20 font-serif italic">
+                <span className="hover:text-white cursor-pointer" onClick={() => { setView({type:'home'}); setActiveMenu(articles.find(a => a.id === view.id).mainMenu); }}>{articles.find(a => a.id === view.id)?.mainMenu}</span>
+                {articles.find(a => a.id === view.id)?.subPath && articles.find(a => a.id === view.id).subPath.map((p, i) => (
+                   <React.Fragment key={i}><ChevronRight size={10} /><span className="text-white/40">{p}</span></React.Fragment>
+                ))}
+              </div>
               <div className="flex items-center gap-6">
-                <button onClick={() => toggleBookmark(view.id)} className={`p-3 rounded-full border transition-all cursor-pointer ${userBookmarks.includes(view.id) ? 'bg-white text-[#368C84] border-white' : 'border-white/10 hover:border-white/40'}`}>
-                  <Bookmark size={16} fill={userBookmarks.includes(view.id) ? "currentColor" : "none"} />
-                </button>
-                {isAdmin && (
-                  <button onClick={() => { setEditingArticle(articles.find(a => a.id === view.id)); setView({type:'cms'}); }}
-                    className="flex items-center gap-2 text-[10px] uppercase tracking-widest text-white/40 hover:text-white border border-white/10 px-4 py-1.5 rounded-full cursor-pointer"
-                  >
-                    <Edit3 size={12}/> Edit Post
-                  </button>
-                )}
+                <button onClick={() => toggleBookmark(view.id)} className={`p-3 rounded-full border transition-all cursor-pointer ${userBookmarks.includes(view.id) ? 'bg-white text-[#368C84]' : 'border-white/10 hover:border-white/40'}`}><Bookmark size={16} fill={userBookmarks.includes(view.id) ? "currentColor" : "none"} /></button>
+                {isAdmin && <button onClick={() => { setEditingArticle(articles.find(a => a.id === view.id)); setView({type:'cms'}); }} className="flex items-center gap-2 text-[10px] uppercase tracking-widest text-white/40 hover:text-white border border-white/10 px-6 py-2 rounded-full cursor-pointer transition-all"><Edit3 size={12}/> Edit</button>}
               </div>
             </div>
             
             {articles.find(a => a.id === view.id) && (
               <>
-                <h1 className="text-5xl md:text-[7.5vw] font-bold font-serif mb-20 leading-[1.05] tracking-tighter italic text-white">{articles.find(a => a.id === view.id).title}</h1>
-                <div className="text-xl md:text-2xl leading-relaxed text-white/70 space-y-12 font-serif max-w-3xl mb-40" dangerouslySetInnerHTML={{ __html: renderMarkdown(articles.find(a => a.id === view.id).content) }} />
+                <h1 className="text-5xl md:text-[7.5vw] font-bold font-serif mb-24 leading-[1.05] tracking-tighter italic text-white">{articles.find(a => a.id === view.id).title}</h1>
+                <div className="text-xl md:text-2xl leading-relaxed text-white/70 space-y-12 font-serif max-w-3xl mb-60" dangerouslySetInnerHTML={{ __html: renderMarkdown(articles.find(a => a.id === view.id).content) }} />
                 
-                <div className="border-t border-white/10 pt-20 flex flex-col md:flex-row justify-between items-start gap-12 text-white">
-                   <div className="max-w-xs">
-                     <p className="text-[10px] uppercase tracking-[0.5em] text-white/20 mb-4 italic">Continue Reading</p>
-                     {articles.filter(a => a.id !== view.id)[0] && (
-                       <div onClick={() => { setView({type:'article', id: articles.filter(a => a.id !== view.id)[0].id}); window.scrollTo(0,0); }} className="group cursor-pointer">
-                         <h4 className="text-2xl font-serif group-hover:italic transition-all">{articles.filter(a => a.id !== view.id)[0].title}</h4>
-                         <ArrowRight size={16} className="mt-4 text-white/20 group-hover:translate-x-3 transition-transform" />
+                {/* 底部區域：推薦閱讀（置中） */}
+                <div className="border-t border-white/10 pt-32 mb-40 text-center flex flex-col items-center">
+                   <p className="text-[10px] uppercase tracking-[0.6em] text-white/20 mb-12 italic font-bold">Recommended Reading</p>
+                   {articles.filter(a => a.id !== view.id)[0] && (
+                     <motion.div 
+                        whileHover={{ scale: 1.02 }}
+                        onClick={() => { setView({type:'article', id: articles.filter(a => a.id !== view.id)[0].id}); window.scrollTo(0,0); }} 
+                        className="group cursor-pointer max-w-2xl"
+                     >
+                       <h4 className="text-4xl md:text-6xl font-serif text-white group-hover:italic transition-all leading-tight">{articles.filter(a => a.id !== view.id)[0].title}</h4>
+                       <div className="flex justify-center mt-10">
+                          <motion.div className="w-16 h-16 rounded-full border border-white/10 flex items-center justify-center group-hover:bg-white group-hover:text-[#368C84] transition-all">
+                            <ArrowRight size={24} />
+                          </motion.div>
                        </div>
-                     )}
-                   </div>
-                   <button onClick={() => { setView({type:'home'}); window.scrollTo(0,0); }} className="p-8 border border-white/10 rounded-full hover:bg-white hover:text-[#368C84] transition-all shadow-xl group cursor-pointer"><Home size={32} className="group-hover:stroke-[#368C84]" /></button>
+                     </motion.div>
+                   )}
+                </div>
+
+                {/* 底部按鈕：Back & Home (圖標加文字) */}
+                <div className="flex justify-center items-center gap-12 pt-20 border-t border-white/5">
+                    <button onClick={() => { setView({type:'home'}); window.scrollTo(0,0); }} className="flex items-center gap-4 group cursor-pointer transition-all">
+                        <div className="p-4 rounded-full border border-white/10 group-hover:bg-white group-hover:text-[#368C84] transition-all">
+                            <ArrowLeft size={20} />
+                        </div>
+                        <span className="text-[10px] uppercase tracking-[0.4em] text-white/40 group-hover:text-white group-hover:translate-x-1 transition-all">Back to List</span>
+                    </button>
+                    <div className="h-10 w-px bg-white/10" />
+                    <button onClick={() => { setView({type:'home'}); setActiveMenu('All'); window.scrollTo(0,0); }} className="flex items-center gap-4 group cursor-pointer transition-all">
+                        <span className="text-[10px] uppercase tracking-[0.4em] text-white/40 group-hover:text-white group-hover:-translate-x-1 transition-all">Return Home</span>
+                        <div className="p-4 rounded-full border border-white/10 group-hover:bg-white group-hover:text-[#368C84] transition-all">
+                            <Home size={20} />
+                        </div>
+                    </button>
                 </div>
               </>
             )}
@@ -539,7 +482,7 @@ export default function App() {
         )}
 
         {view.type === 'cms' && isAdmin && (
-          <CMSDashboard user={user} setView={setView} editData={editingArticle} showMessage={showMessage} />
+          <CMSDashboard user={user} setView={setView} editData={editingArticle} showMessage={showMessage} menuList={dynamicMenuItems} />
         )}
       </AnimatePresence>
 
@@ -554,9 +497,9 @@ export default function App() {
         )}
       </AnimatePresence>
 
-      <footer className="p-12 md:p-24 border-t border-white/5 flex flex-col md:flex-row justify-between items-center gap-8 text-[8px] text-white/10 uppercase tracking-[0.6em] font-light">
-        <span className="cursor-pointer" onClick={() => setView({type:'home'})}>© 2026 CURTIS CHEN — ARCHIVE & DIRECTION</span>
-        <div className="flex items-center gap-8 italic"><ShieldCheck size={10}/> PRIVATE ENCRYPTION ACTIVE</div>
+      <footer className="p-12 md:p-24 border-t border-white/5 flex flex-col md:flex-row justify-between items-center gap-8 text-[8px] text-white/10 uppercase tracking-[0.6em] font-light italic">
+        <span className="cursor-pointer" onClick={() => setView({type:'home'})}>© 2026 CURTIS CHEN — DESIGN & ARCHIVE</span>
+        <div className="flex items-center gap-8"><ShieldCheck size={10}/> ADMIN ENCRYPTION ACTIVE</div>
       </footer>
     </div>
   );
