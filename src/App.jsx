@@ -65,6 +65,7 @@ const CMSDashboard = ({ user, setView, editData, showMessage, menuList, socialLi
   );
   const [loading, setLoading] = useState(false);
 
+  // 社群與選單設定
   const [links, setLinks] = useState(socialLinks);
   const [customMenus, setCustomMenus] = useState(baseMenuItems || []);
   const [newMenuInput, setNewMenuInput] = useState("");
@@ -81,7 +82,7 @@ const CMSDashboard = ({ user, setView, editData, showMessage, menuList, socialLi
       };
       if (editData?.id) {
         await updateDoc(doc(db, 'artifacts', appId, 'public', 'data', 'articles', editData.id), { ...articleData, lastModified: Timestamp.now() });
-        showMessage('檔案已更新');
+        showMessage('內容已更新');
       } else {
         await addDoc(collection(db, 'artifacts', appId, 'public', 'data', 'articles'), articleData);
         showMessage('發布成功');
@@ -116,68 +117,69 @@ const CMSDashboard = ({ user, setView, editData, showMessage, menuList, socialLi
     <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} className="pt-32 px-8 md:px-24 max-w-4xl mx-auto pb-40 text-white font-sans">
       <div className="flex justify-between items-end mb-16 border-b border-white/10 pb-8">
         <h2 className="text-4xl font-serif italic">{editData ? '編輯檔案.' : '建立館藏.'}</h2>
-        <button onClick={() => setView({ type: 'home' })} className="text-white/30 text-[10px] tracking-widest hover:text-white uppercase cursor-pointer">Back</button>
+        <button onClick={() => setView({ type: 'home' })} className="text-white/30 text-[10px] tracking-widest hover:text-white uppercase cursor-pointer transition-all">Back</button>
       </div>
 
       <form onSubmit={handlePublish} className="space-y-16">
         <div className="grid grid-cols-1 md:grid-cols-2 gap-12">
           <div className="space-y-4">
-            <label className="text-[10px] uppercase tracking-widest text-white/40 font-bold">1. 選單位置</label>
-            <input required className="w-full bg-transparent border-b border-white/10 py-3 text-2xl font-serif outline-none focus:border-[#368C84]" value={mainMenu} onChange={(e) => setMainMenu(e.target.value)} />
+            <label className="text-[10px] uppercase tracking-widest text-white/40 font-bold ml-1">1. 選單位置</label>
+            <input required className="w-full bg-transparent border-b border-white/10 py-3 text-2xl font-serif outline-none focus:border-[#368C84] transition-all" value={mainMenu} onChange={(e) => setMainMenu(e.target.value)} />
             <div className="flex flex-wrap gap-2">
               {menuList.map(m => (
-                <button key={m} type="button" onClick={() => setMainMenu(m)} className={`px-4 py-1.5 rounded-full text-[9px] tracking-widest border cursor-pointer ${mainMenu === m ? 'bg-white text-black border-white' : 'border-white/10 text-white/30'}`}>{m}</button>
+                <button key={m} type="button" onClick={() => setMainMenu(m)} className={`px-4 py-1.5 rounded-full text-[9px] tracking-widest border cursor-pointer ${mainMenu === m ? 'bg-white text-black border-white' : 'border-white/10 text-white/30 hover:border-white/50'}`}>{m}</button>
               ))}
             </div>
           </div>
           <div className="space-y-4">
             <label className="text-[10px] uppercase tracking-widest text-white/40 font-bold ml-1 flex items-center gap-2"><Calendar size={12}/> 2. 發布日期</label>
-            <input type="date" className="w-full bg-white/5 border border-white/10 rounded-full px-6 py-3 text-sm outline-none focus:border-[#368C84]" value={pubDate} onChange={e => setPubDate(e.target.value)} />
+            <input type="date" className="w-full bg-white/5 border border-white/10 rounded-full px-6 py-3 text-sm outline-none focus:border-[#368C84] transition-all" value={pubDate} onChange={e => setPubDate(e.target.value)} />
           </div>
         </div>
         <div className="space-y-4">
-          <label className="text-[10px] uppercase tracking-widest text-white/40 font-bold">3. 無限層級路徑</label>
+          <label className="text-[10px] uppercase tracking-widest text-white/40 font-bold ml-1">3. 無限層級路徑</label>
           <input className="w-full bg-transparent border-b border-white/10 py-2 text-lg outline-none focus:border-white text-white" value={pathInput} onChange={e => setPathInput(e.target.value)} placeholder="路徑/子路徑" />
         </div>
         <div className="space-y-4">
-          <label className="text-[10px] uppercase tracking-widest text-white/40 font-bold">4. 檔案標題</label>
+          <label className="text-[10px] uppercase tracking-widest text-white/40 font-bold ml-1">4. 檔案標題</label>
           <input required className="w-full bg-transparent border-b border-white/10 py-4 text-3xl font-serif outline-none focus:border-[#368C84]" value={title} onChange={e => setTitle(e.target.value)} />
         </div>
         <div className="space-y-4">
-          <label className="text-[10px] uppercase tracking-widest text-white/40 font-bold">5. 內容 (Markdown)</label>
+          <label className="text-[10px] uppercase tracking-widest text-white/40 font-bold ml-1">5. 內容 (Markdown)</label>
           <textarea required rows={12} className="w-full bg-black/10 border border-white/5 p-8 rounded-[40px] text-white/80 font-mono text-sm outline-none focus:border-[#368C84]/50 transition-all" value={content} onChange={e => setContent(e.target.value)} />
         </div>
-        <button disabled={loading} type="submit" className="w-full bg-white text-[#368C84] py-8 rounded-full font-bold uppercase tracking-[0.5em] hover:scale-[0.98] transition-all shadow-2xl">確認發布</button>
+        <button disabled={loading} type="submit" className="w-full bg-white text-[#368C84] py-8 rounded-full font-bold uppercase tracking-[0.5em] hover:scale-[0.98] transition-all shadow-2xl">確認並儲存</button>
       </form>
 
-      <div className="mt-40 space-y-12">
+      {/* 管理設定區 */}
+      <div className="mt-40 space-y-12 border-t border-white/10 pt-40">
         <div className="p-10 bg-white/5 rounded-[60px] border border-white/5 space-y-8">
-          <h3 className="text-[10px] uppercase tracking-[0.4em] text-white/30 flex items-center gap-3"><Settings2 size={14}/> 選單導覽管理</h3>
+          <h3 className="text-[10px] uppercase tracking-[0.4em] text-white/30 flex items-center gap-3"><Settings2 size={14}/> 選單導覽項目管理</h3>
           <div className="flex flex-wrap gap-4">
             {customMenus.map(m => (
               <div key={m} className="flex items-center gap-2 bg-white/5 border border-white/10 px-4 py-2 rounded-full group">
                 <span className="text-xs uppercase tracking-widest text-white/60">{m}</span>
-                <button onClick={() => removeMenu(m)} className="text-white/20 hover:text-red-400 transition-colors"><XCircle size={14}/></button>
+                <button onClick={() => removeMenu(m)} className="text-white/20 hover:text-red-400 transition-colors cursor-pointer"><XCircle size={14}/></button>
               </div>
             ))}
           </div>
           <div className="flex gap-4">
-            <input className="flex-1 bg-black/30 border border-white/5 rounded-full px-6 py-3 text-xs outline-none focus:border-[#368C84]" value={newMenuInput} onChange={e => setNewMenuInput(e.target.value)} placeholder="新增預設選單項目..." />
-            <button onClick={addMenu} className="px-8 py-3 bg-white text-black rounded-full font-black text-[10px] uppercase tracking-widest hover:scale-105 transition-all">Add</button>
+            <input className="flex-1 bg-black/30 border border-white/5 rounded-full px-6 py-3 text-xs outline-none focus:border-[#368C84]" value={newMenuInput} onChange={e => setNewMenuInput(e.target.value)} placeholder="手動輸入選單名稱..." />
+            <button onClick={addMenu} className="px-8 py-3 bg-white text-black rounded-full font-black text-[10px] uppercase tracking-widest hover:scale-105 transition-all cursor-pointer">Add</button>
           </div>
         </div>
 
         <div className="p-10 bg-white/5 rounded-[60px] border border-white/5 space-y-10 shadow-2xl">
-          <h3 className="text-[10px] uppercase tracking-[0.4em] text-white/30 flex items-center gap-3"><LinkIcon size={14}/> 社群連結設定</h3>
+          <h3 className="text-[10px] uppercase tracking-[0.4em] text-white/30 flex items-center gap-3"><LinkIcon size={14}/> 全站社群連結設定</h3>
           <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
             {Object.keys(links).map(key => (
               <div key={key} className="space-y-2">
                 <label className="text-[9px] uppercase tracking-widest text-white/20 ml-4 font-bold">{key}</label>
-                <input className="w-full bg-black/30 border border-white/5 rounded-full px-6 py-3 text-[11px] outline-none focus:border-[#368C84] text-white/60 transition-all" value={links[key]} onChange={e => setLinks({...links, [key]: e.target.value})} />
+                <input className="w-full bg-black/30 border border-white/5 rounded-full px-6 py-3 text-[11px] outline-none focus:border-[#368C84] text-white/60 transition-all" value={links[key]} onChange={e => setLinks({...links, [key]: e.target.value})} placeholder={`Paste your ${key} URL...`} />
               </div>
             ))}
           </div>
-          <button onClick={() => updateSettings('links', links)} className="w-full py-5 bg-white/5 border border-white/10 rounded-full text-[10px] uppercase tracking-[0.4em] hover:bg-white hover:text-black transition-all font-black">更新社群連結</button>
+          <button onClick={() => updateSettings('links', links)} className="w-full py-5 bg-white/5 border border-white/10 rounded-full text-[10px] uppercase tracking-[0.4em] hover:bg-white hover:text-black transition-all font-black cursor-pointer">更新社群連結</button>
         </div>
       </div>
     </motion.div>
@@ -207,7 +209,6 @@ export default function App() {
   const [reactions, setReactions] = useState({});
   const [newComment, setNewComment] = useState("");
   const [editingCommentId, setEditingCommentId] = useState(null);
-  const [editHistoryOpen, setEditHistoryOpen] = useState(null);
 
   const { scrollYProgress } = useScroll();
   const scaleX = useSpring(scrollYProgress, { stiffness: 100, damping: 30 });
@@ -242,6 +243,7 @@ export default function App() {
     const n = items.length;
     if (n <= 3) return [items];
     if (n === 4) return [items.slice(0, 2), items.slice(2)];
+    // 中段肥佈局 (如 7 項分配為 2/3/2)
     const middleCount = Math.min(Math.ceil(n * 0.45), 4);
     const sideCount = Math.floor((n - middleCount) / 2);
     return [ items.slice(0, sideCount), items.slice(sideCount, sideCount + middleCount), items.slice(sideCount + middleCount) ].filter(r => r.length > 0);
@@ -249,8 +251,8 @@ export default function App() {
 
   useEffect(() => {
     if (view.type !== 'article') return;
-    const unsubC = onSnapshot(collection(db, 'artifacts', appId, 'public', 'data', 'articles', view.id, 'comments'), (s) => setComments(s.docs.map(d => ({id: d.id, ...d.data()})).sort((a,b) => a.createdAt - b.createdAt)));
-    const unsubR = onSnapshot(collection(db, 'artifacts', appId, 'public', 'data', 'articles', view.id, 'reactions'), (s) => {
+    onSnapshot(collection(db, 'artifacts', appId, 'public', 'data', 'articles', view.id, 'comments'), (s) => setComments(s.docs.map(d => ({id: d.id, ...d.data()})).sort((a,b) => a.createdAt - b.createdAt)));
+    onSnapshot(collection(db, 'artifacts', appId, 'public', 'data', 'articles', view.id, 'reactions'), (s) => {
       const res = {};
       s.docs.forEach(d => {
         const data = d.data();
@@ -259,7 +261,6 @@ export default function App() {
       });
       setReactions(res);
     });
-    return () => { unsubC(); unsubR(); };
   }, [view.id, user]);
 
   useEffect(() => {
@@ -307,23 +308,44 @@ export default function App() {
 
   // 互動組件：通用變粗 + 底線動畫
   const InteractiveLink = ({ children, onClick, className = "" }) => (
-    <button onClick={onClick} className={`relative group transition-all duration-300 hover:font-black ${className}`}>
+    <button onClick={onClick} className={`relative group transition-all duration-300 hover:font-black cursor-pointer ${className}`}>
       {children}
       <span className="absolute bottom-0 left-0 w-0 h-0.5 bg-current transition-all duration-300 group-hover:w-full"></span>
     </button>
   );
 
+  const setReaction = async (type) => {
+    if (!user) { signInAnonymously(auth); return; }
+    const ref = doc(db, 'artifacts', appId, 'public', 'data', 'articles', view.id, 'reactions', user.uid);
+    if (reactions.myType === type) { await deleteDoc(ref); }
+    else { await setDoc(ref, { type, updatedAt: Timestamp.now() }); }
+  };
+
+  const postComment = async () => {
+    if (!user) { signInWithPopup(auth, provider); return; }
+    if (!newComment.trim()) return;
+    const coll = collection(db, 'artifacts', appId, 'public', 'data', 'articles', view.id, 'comments');
+    await addDoc(coll, { text: newComment, userId: user.uid, userName: user.displayName, userPhoto: user.photoURL, createdAt: Timestamp.now() });
+    setNewComment("");
+    showMessage('留言成功');
+  };
+
+  const deleteComment = async (id) => {
+    if (!confirm("確定要將這條評論永久刪除？")) return;
+    await deleteDoc(doc(db, 'artifacts', appId, 'public', 'data', 'articles', view.id, 'comments', id));
+    showMessage('已刪除');
+  };
+
   return (
     <div className="bg-[#368C84] text-white min-h-screen font-sans selection:bg-white selection:text-[#368C84]">
       <style>{`
-        @import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;700&family=Noto+Serif+TC:wght@300;400;700&display=swap');
+        @import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;700;900&family=Noto+Serif+TC:wght@300;400;700;900&display=swap');
         .font-serif { font-family: 'Noto Serif TC', serif; }
         ::-webkit-scrollbar { width: 0px; }
         .vertical-text { writing-mode: vertical-rl; text-orientation: mixed; }
-        .menu-underline-active::after { content: ''; position: absolute; bottom: 0; left: 0; width: 0; height: 2px; background: currentColor; transition: width 0.3s ease; }
-        .menu-underline-active:hover::after { width: 100%; }
       `}</style>
 
+      {/* Toast */}
       <AnimatePresence>
         {message && (
           <motion.div initial={{ y: -50, opacity: 0 }} animate={{ y: 0, opacity: 1 }} exit={{ y: -50, opacity: 0 }} className="fixed top-12 left-1/2 -translate-x-1/2 bg-white text-[#368C84] px-8 py-3 rounded-full shadow-2xl z-[200] flex items-center gap-3 font-black text-xs tracking-widest">
@@ -332,6 +354,7 @@ export default function App() {
         )}
       </AnimatePresence>
 
+      {/* Hover 進度條工具列 */}
       <div className="fixed top-0 left-0 right-0 h-10 group z-[150] cursor-default">
         <motion.div className="h-1 bg-white origin-left shadow-[0_0_15px_rgba(255,255,255,0.3)]" style={{ scaleX }} />
         <div className="opacity-0 group-hover:opacity-100 transition-all duration-500 absolute top-2 left-0 right-0 flex justify-center pointer-events-none">
@@ -344,6 +367,7 @@ export default function App() {
         </div>
       </div>
 
+      {/* 頂部導航 */}
       <motion.nav animate={{ y: showHeader ? 0 : -100 }} className="fixed top-0 left-0 w-full p-8 flex justify-between items-center z-[110] mix-blend-difference font-black tracking-tighter uppercase italic">
         <div onClick={() => { setView({type:'home'}); setActiveMenu('All'); window.scrollTo(0,0); }} className="text-xl cursor-pointer hover:opacity-50 transition-all">Curtis Chen</div>
         <div className="flex items-center gap-8">
@@ -352,7 +376,7 @@ export default function App() {
         </div>
       </motion.nav>
 
-      {/* 搜尋 */}
+      {/* 搜尋視窗 */}
       <AnimatePresence>
         {isSearchOpen && (
           <motion.div initial={{ opacity: 0, y: -20 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: -20 }} className="fixed top-24 left-0 w-full px-8 md:px-24 z-[105]">
@@ -361,16 +385,14 @@ export default function App() {
         )}
       </AnimatePresence>
 
-      {/* 全螢幕對稱選單 (排版下移且不可捲動) */}
+      {/* 全螢幕對稱選單 */}
       <AnimatePresence>
         {isMenuOpen && (
           <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} transition={transition} className="fixed inset-0 bg-[#368C84] z-[120] flex flex-col p-12 overflow-hidden select-none">
-            {/* 頂部關閉按鈕 */}
             <div className="flex justify-end"><button onClick={() => setIsMenuOpen(false)} className="hover:rotate-90 transition-all duration-500 cursor-pointer"><X size={48} strokeWidth={1}/></button></div>
             
-            {/* 選單主體向下偏移 */}
             <div className="flex-grow flex flex-col items-center justify-around py-24 max-h-[85vh]">
-              <div className="flex flex-col items-center gap-12 md:gap-20 w-full">
+              <div className="flex flex-col items-center gap-12 md:gap-20 w-full text-white">
                 {menuRows.map((row, rid) => (
                   <div key={rid} className="flex flex-wrap justify-center gap-12 md:gap-24 w-full px-4">
                     {row.map((item, i) => (
@@ -387,7 +409,6 @@ export default function App() {
               </InteractiveLink>
             </div>
 
-            {/* 底部功能區 */}
             <div className="flex flex-col md:flex-row justify-between items-end gap-12 border-t border-white/10 pt-12 pb-2 mt-auto">
               <SocialIconsList />
               <div className="flex flex-col items-end gap-6">
@@ -399,7 +420,6 @@ export default function App() {
                   )}
                   {user && <InteractiveLink onClick={() => signOut(auth)} className="text-red-400/60 hover:text-red-400">LOGOUT</InteractiveLink>}
                 </div>
-                {/* 此小字將剛好被導覽列遮蓋 */}
                 <p className="text-[8px] text-white/5 italic tracking-widest uppercase">© 2026 Curtis Chen. Museum Blog Archive.</p>
               </div>
             </div>
@@ -408,6 +428,7 @@ export default function App() {
       </AnimatePresence>
 
       <AnimatePresence mode="wait">
+        {/* 首頁 */}
         {view.type === 'home' && (
           <motion.main key="home" initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} className="pt-40 px-8 md:px-24 pb-40">
             <div className="flex flex-row items-start gap-12 mb-32">
@@ -442,6 +463,7 @@ export default function App() {
                       {art.subPath?.map((p, i) => <span key={i} className="flex items-center gap-1 opacity-40"><ChevronRight size={10}/> {p}</span>)}
                       {userBookmarks.includes(art.id) && <Bookmark size={10} fill="currentColor" className="ml-2 text-[#368C84] bg-white rounded-full p-0.5" />}
                     </div>
+                    {/* 修正：找回列表中的編輯鈕 */}
                     <h3 className="text-4xl md:text-7xl font-serif transition-all duration-1000 text-white leading-tight group-hover:font-black group-hover:italic">{art.title}</h3>
                     <p className="text-[9px] uppercase tracking-widest text-white/20 font-mono">{new Date(art.publishDate.toDate()).toLocaleDateString()}</p>
                   </div>
@@ -455,16 +477,18 @@ export default function App() {
           </motion.main>
         )}
 
+        {/* 文章內容視圖 */}
         {view.type === 'article' && (
           <motion.article key="article" initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} transition={transition} className="pt-40 px-8 md:px-24 max-w-5xl mx-auto pb-60">
-            <div className="flex justify-between items-center mb-16 border-b border-white/5 pb-8">
+            <div className="flex justify-between items-center mb-16 border-b border-white/5 pb-8 text-white">
               <div className="flex items-center gap-4 text-[10px] uppercase tracking-widest text-white/20 font-serif italic">
                 <InteractiveLink onClick={() => { setView({type:'home'}); setActiveMenu(articles.find(a => a.id === view.id).mainMenu); }}>{articles.find(a => a.id === view.id).mainMenu}</InteractiveLink>
                 {articles.find(a => a.id === view.id)?.subPath?.map((p, i) => (<React.Fragment key={i}><ChevronRight size={10} /><span className="text-white/40">{p}</span></React.Fragment>))}
               </div>
               <div className="flex items-center gap-6">
                 <button onClick={() => toggleBookmark(view.id)} className={`p-3 rounded-full border transition-all cursor-pointer ${userBookmarks.includes(view.id) ? 'bg-white text-[#368C84] shadow-xl' : 'border-white/10 hover:border-white/40'}`}><Bookmark size={16} fill={userBookmarks.includes(view.id) ? "currentColor" : "none"} /></button>
-                {isAdmin && <button onClick={() => { setEditingArticle(articles.find(a => a.id === view.id)); setView({type:'cms'}); }} className="flex items-center gap-3 text-[10px] uppercase tracking-widest text-white/40 border border-white/10 px-6 py-2 rounded-full cursor-pointer hover:bg-white hover:text-black transition-all shadow-xl font-black group relative">EDIT ARCHIVE<span className="absolute bottom-0 left-0 w-0 h-0.5 bg-current transition-all duration-300 group-hover:w-full"></span></button>}
+                {/* 修正：找回文章內的編輯鈕 */}
+                {isAdmin && <InteractiveLink onClick={() => { setEditingArticle(articles.find(a => a.id === view.id)); setView({type:'cms'}); }} className="text-[10px] uppercase tracking-widest text-white/40 border border-white/10 px-6 py-2 rounded-full font-black shadow-xl">EDIT ARCHIVE</InteractiveLink>}
               </div>
             </div>
             
@@ -489,24 +513,20 @@ export default function App() {
 
                 {/* 留言區 */}
                 <div className="max-w-3xl mx-auto mb-60 space-y-16">
-                  <h3 className="text-2xl font-serif italic flex items-center gap-4">檔案評論區 <span className="text-xs font-mono opacity-20 tracking-tighter">({comments.length})</span></h3>
+                  <h3 className="text-2xl font-serif italic flex items-center gap-4 text-white">檔案評論區 <span className="text-xs font-mono opacity-20 tracking-tighter">({comments.length})</span></h3>
                   <div className="space-y-12">
                     {comments.map(c => (
                       <div key={c.id} className="group flex gap-6 items-start">
                         <div className="w-12 h-12 rounded-full bg-white/5 border border-white/10 flex-shrink-0 overflow-hidden shadow-2xl">
-                          {c.userPhoto ? <img src={c.userPhoto} alt="" className="w-full h-full object-cover" /> : <div className="w-full h-full flex items-center justify-center text-white/10 italic">?</div>}
+                          {c.userPhoto ? <img src={c.userPhoto} alt="" className="w-full h-full object-cover" /> : <div className="w-full h-full flex items-center justify-center text-white/10 italic font-black">?</div>}
                         </div>
-                        <div className="flex-1 space-y-2">
+                        <div className="flex-1 space-y-2 text-white">
                           <div className="flex items-center justify-between">
                             <div className="flex items-center gap-3">
                               <span className="text-xs font-black text-white/80">{c.userName}</span>
                               <span className="text-[9px] text-white/20 font-mono italic">{new Date(c.createdAt.toDate()).toLocaleDateString()}</span>
-                              {(c.editedAt || (c.history && c.history.length > 0)) && (
-                                <button onClick={() => setEditHistoryOpen(editHistoryOpen === c.id ? null : c.id)} className="text-[8px] text-[#368C84] bg-white px-3 py-1 rounded-full font-black cursor-pointer hover:scale-110 transition-all uppercase">Edited</button>
-                              )}
                             </div>
                             <div className="flex gap-4 opacity-0 group-hover:opacity-100 transition-opacity">
-                              {c.userId === user?.uid && <button onClick={() => {setEditingCommentId(c.id); setNewComment(c.text);}} className="text-white/20 hover:text-white transition-all cursor-pointer"><Edit3 size={14}/></button>}
                               {(c.userId === user?.uid || isAdmin) && <button onClick={() => deleteComment(c.id)} className="text-white/20 hover:text-red-400 transition-all cursor-pointer"><Trash2 size={14}/></button>}
                             </div>
                           </div>
@@ -515,17 +535,33 @@ export default function App() {
                       </div>
                     ))}
                   </div>
+                  <div className="relative pt-12">
+                    <textarea rows={4} className="w-full bg-white/5 border border-white/10 rounded-[50px] p-10 outline-none focus:border-[#368C84]/50 transition-all font-serif text-white placeholder-white/5 shadow-inner" value={newComment} onChange={e => setNewComment(e.target.value)} placeholder="撰寫評論..." />
+                    <button onClick={postComment} className="absolute bottom-8 right-10 bg-white text-[#368C84] px-10 py-4 rounded-full font-black text-xs flex items-center gap-4 cursor-pointer shadow-2xl hover:scale-105 transition-all uppercase tracking-widest">
+                      Submit <Send size={18}/>
+                    </button>
+                  </div>
                 </div>
 
-                {/* 底部導覽區域：Back & Home 強制一行 */}
+                {/* 底部導覽區域 */}
+                <div className="border-t border-white/10 pt-32 mb-40 text-center flex flex-col items-center">
+                   <p className="text-[10px] uppercase tracking-[0.6em] text-white/20 mb-12 italic font-black">Next Exhibition</p>
+                   {articles.filter(a => a.id !== view.id)[0] && (
+                     <motion.div whileHover={{ scale: 1.02 }} onClick={() => { setView({type:'article', id: articles.filter(a => a.id !== view.id)[0].id}); window.scrollTo(0,0); }} className="group cursor-pointer max-w-2xl px-4">
+                       <h4 className="text-4xl md:text-6xl font-serif text-white transition-all leading-tight tracking-tighter group-hover:italic group-hover:font-black">{articles.filter(a => a.id !== view.id)[0].title}</h4>
+                       <div className="flex justify-center mt-12"><motion.div className="w-20 h-20 rounded-full border border-white/10 flex items-center justify-center group-hover:bg-white group-hover:text-black transition-all duration-700 shadow-2xl"><ArrowRight size={32}/></motion.div></div>
+                     </motion.div>
+                   )}
+                </div>
+
                 <div className="flex flex-row justify-center items-center gap-12 md:gap-32 pt-20 border-t border-white/10">
-                    <InteractiveLink onClick={() => { setView({type:'home'}); window.scrollTo(0,0); }} className="flex items-center gap-6 group cursor-pointer">
+                    <InteractiveLink onClick={() => { setView({type:'home'}); window.scrollTo(0,0); }} className="flex items-center gap-6 group cursor-pointer text-white">
                         <div className="p-4 md:p-6 rounded-full border border-white/20 group-hover:bg-white group-hover:text-black transition-all duration-700 shadow-2xl"><ArrowLeft size={24}/></div>
-                        <span className="text-[10px] md:text-[12px] uppercase tracking-[0.5em] text-white/30 group-hover:text-white whitespace-nowrap font-black">Back to List</span>
+                        <span className="text-[10px] md:text-[12px] uppercase tracking-[0.5em] text-white/30 group-hover:text-white whitespace-nowrap">Back to List</span>
                     </InteractiveLink>
                     <div className="h-16 w-px bg-white/10 hidden md:block" />
-                    <InteractiveLink onClick={() => { setView({type:'home'}); setActiveMenu('All'); window.scrollTo(0,0); }} className="flex items-center gap-6 group cursor-pointer">
-                        <span className="text-[10px] md:text-[12px] uppercase tracking-[0.5em] text-white/30 group-hover:text-white whitespace-nowrap font-black">Return Home</span>
+                    <InteractiveLink onClick={() => { setView({type:'home'}); setActiveMenu('All'); window.scrollTo(0,0); }} className="flex items-center gap-6 group cursor-pointer text-white">
+                        <span className="text-[10px] md:text-[12px] uppercase tracking-[0.5em] text-white/30 group-hover:text-white whitespace-nowrap">Return Home</span>
                         <div className="p-4 md:p-6 rounded-full border border-white/20 group-hover:bg-white group-hover:text-black transition-all duration-700 shadow-2xl"><Home size={24}/></div>
                     </InteractiveLink>
                 </div>
@@ -534,14 +570,38 @@ export default function App() {
           </motion.article>
         )}
 
+        {/* 我的收藏 */}
+        {view.type === 'bookmarks' && (
+          <motion.main key="bookmarks" initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} className="pt-40 px-8 md:px-24 pb-40 min-h-screen">
+             <div className="mb-24 border-b border-white/10 pb-12 text-white">
+               <InteractiveLink onClick={() => setView({type:'home'})} className="flex items-center gap-2 text-[10px] uppercase tracking-widest text-white/40 mb-8">BACK TO HALL</InteractiveLink>
+               <h1 className="text-6xl md:text-8xl font-serif italic font-light leading-none">My Private Gallery.</h1>
+             </div>
+             <div className="grid grid-cols-1">
+               {articles.filter(a => userBookmarks.includes(a.id)).map((art, index) => (
+                   <motion.div key={art.id} onClick={() => setView({type:'article', id: art.id})} className="group py-12 border-b border-white/5 flex justify-between items-center cursor-pointer hover:bg-white/[0.02] px-8 -mx-8 transition-all">
+                     <div><p className="text-[9px] uppercase tracking-widest text-white/40 mb-3 italic font-bold">{art.mainMenu} {art.subPath?.length > 0 && `/ ${art.subPath.join(' / ')}`}</p><h3 className="text-3xl md:text-5xl font-serif text-white transition-all group-hover:font-black group-hover:italic">{art.title}</h3></div>
+                     <button onClick={(e) => { e.stopPropagation(); toggleBookmark(art.id); }} className="p-4 hover:text-red-400 cursor-pointer transition-all"><X size={24}/></button>
+                   </motion.div>
+               ))}
+             </div>
+          </motion.main>
+        )}
+
         {view.type === 'cms' && isAdmin && (
           <CMSDashboard user={user} setView={setView} editData={editingArticle} showMessage={showMessage} menuList={dynamicMenuItems} socialLinks={socialLinks} baseMenuItems={baseMenuItems} />
         )}
       </AnimatePresence>
 
+      <AnimatePresence>
+        {showBackToTop && (
+          <motion.button initial={{ opacity: 0, scale: 0 }} animate={{ opacity: 1, scale: 1 }} exit={{ opacity: 0, scale: 0 }} onClick={() => window.scrollTo({ top: 0, behavior: 'smooth' })} className="fixed bottom-12 right-12 w-16 h-16 bg-white text-black rounded-full shadow-2xl flex items-center justify-center z-[140] hover:scale-110 transition-all cursor-pointer"><ChevronUp size={28} strokeWidth={4}/></motion.button>
+        )}
+      </AnimatePresence>
+
       <footer className="p-12 md:p-24 border-t border-white/5 flex flex-col md:flex-row justify-between items-center gap-8 text-[8px] text-white/10 uppercase tracking-[0.6em] font-light italic">
         <SocialIconsList />
-        <InteractiveLink className="font-black" onClick={() => setView({type:'home'})}>© 2026 CURTIS CHEN — MUSEUM BLOG ARCHIVE</InteractiveLink>
+        <InteractiveLink className="font-black text-white" onClick={() => setView({type:'home'})}>© 2026 CURTIS CHEN — MUSEUM BLOG ARCHIVE</InteractiveLink>
         <div className="flex items-center gap-8 transition-all hover:text-white/40 font-black"><ShieldCheck size={10}/> PRIVATE ENCRYPTION ACTIVE</div>
       </footer>
     </div>
