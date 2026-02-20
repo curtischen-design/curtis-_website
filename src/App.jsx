@@ -161,7 +161,7 @@ const CMSDashboard = ({ user, setView, editData, showMessage, menuList, socialLi
       </form>
 
       <div className="mt-40 space-y-12">
-        <div className="p-10 bg-white/5 rounded-[60px] border border-white/5 space-y-8">
+        <div className="p-10 bg-white/5 rounded-[60px] border border-white/5 space-y-8 text-white">
           <h3 className="text-[10px] uppercase tracking-[0.4em] text-white/30 flex items-center gap-3"><Settings2 size={14}/> 選單導覽管理</h3>
           <div className="flex flex-wrap gap-4">
             {customMenus.map(m => (
@@ -257,8 +257,8 @@ export default function App() {
 
   useEffect(() => {
     if (view.type !== 'article') return;
-    const unsubC = onSnapshot(collection(db, 'artifacts', appId, 'public', 'data', 'articles', view.id, 'comments'), (s) => setComments(s.docs.map(d => ({id: d.id, ...d.data()})).sort((a,b) => a.createdAt - b.createdAt)));
-    const unsubR = onSnapshot(collection(db, 'artifacts', appId, 'public', 'data', 'articles', view.id, 'reactions'), (s) => {
+    onSnapshot(collection(db, 'artifacts', appId, 'public', 'data', 'articles', view.id, 'comments'), (s) => setComments(s.docs.map(d => ({id: d.id, ...d.data()})).sort((a,b) => a.createdAt - b.createdAt)));
+    onSnapshot(collection(db, 'artifacts', appId, 'public', 'data', 'articles', view.id, 'reactions'), (s) => {
       const res = {};
       s.docs.forEach(d => {
         const data = d.data();
@@ -267,7 +267,6 @@ export default function App() {
       });
       setReactions(res);
     });
-    return () => { unsubC(); unsubR(); };
   }, [view.id, user]);
 
   useEffect(() => {
@@ -344,6 +343,7 @@ export default function App() {
         .vertical-text { writing-mode: vertical-rl; text-orientation: mixed; }
       `}</style>
 
+      {/* Toast */}
       <AnimatePresence>
         {message && (
           <motion.div initial={{ y: -50, opacity: 0 }} animate={{ y: 0, opacity: 1 }} exit={{ y: -50, opacity: 0 }} className="fixed top-12 left-1/2 -translate-x-1/2 bg-white text-[#368C84] px-8 py-3 rounded-full shadow-2xl z-[200] flex items-center gap-3 font-black text-xs tracking-widest">
@@ -352,6 +352,7 @@ export default function App() {
         )}
       </AnimatePresence>
 
+      {/* Hover 進度條工具列 */}
       <div className="fixed top-0 left-0 right-0 h-10 group z-[150] cursor-default">
         <motion.div className="h-1 bg-white origin-left shadow-[0_0_15px_rgba(255,255,255,0.3)]" style={{ scaleX }} />
         <div className="opacity-0 group-hover:opacity-100 transition-all duration-500 absolute top-2 left-0 right-0 flex justify-center pointer-events-none">
@@ -364,8 +365,10 @@ export default function App() {
         </div>
       </div>
 
+      {/* 頂部導航 (嚴格對非管理員隱藏 Dashboard) */}
       <motion.nav animate={{ y: showHeader ? 0 : -100 }} className="fixed top-0 left-0 w-full p-8 flex justify-between items-center z-[110] mix-blend-difference font-black tracking-tighter uppercase italic">
         <div onClick={() => { setView({type:'home'}); setActiveMenu('All'); window.scrollTo(0,0); }} className="text-xl cursor-pointer hover:opacity-50 transition-all">Curtis Chen</div>
+        
         <div className="flex items-center gap-6">
           <div className="hidden md:flex items-center gap-6 text-[9px] tracking-[0.3em] font-black">
             {isAdmin && <InteractiveLink onClick={() => { setEditingArticle(null); setView({type:'cms'}); }}>Dashboard</InteractiveLink>}
@@ -386,11 +389,10 @@ export default function App() {
         )}
       </AnimatePresence>
 
-      {/* 全螢幕對稱選單 */}
+      {/* 全螢幕對稱選單 (嚴格邏輯判斷) */}
       <AnimatePresence>
         {isMenuOpen && (
           <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} transition={transition} className="fixed inset-0 bg-[#368C84] z-[120] flex flex-col p-12 overflow-hidden select-none">
-            {/* 頂部按鈕區：搜尋與關閉擺在一起 */}
             <div className="flex justify-end items-center gap-8">
               <button onClick={() => { setIsSearchOpen(true); setIsMenuOpen(false); }} className="hover:opacity-50 transition-all cursor-pointer"><Search size={28} color="white"/></button>
               <button onClick={() => setIsMenuOpen(false)} className="hover:rotate-90 transition-all duration-500 cursor-pointer"><X size={48} strokeWidth={1} color="white"/></button>
@@ -399,9 +401,9 @@ export default function App() {
             <div className="flex-grow flex flex-col items-center justify-around py-24 max-h-[85vh]">
               <div className="flex flex-col items-center gap-12 md:gap-20 w-full text-white">
                 {menuRows.map((row, rid) => (
-                  <div key={rid} className="flex flex-wrap justify-center gap-12 md:gap-24 w-full px-4">
+                  <div key={rid} className="flex flex-wrap justify-center gap-12 md:gap-24 w-full px-4 text-white">
                     {row.map((item) => (
-                      <InteractiveLink key={item} onClick={() => { setActiveMenu(item); setActivePath([]); setView({type:'home'}); setIsMenuOpen(false); window.scrollTo(0,0); }} className="text-3xl md:text-5xl font-serif font-light tracking-tight px-2">
+                      <InteractiveLink key={item} onClick={() => { setActiveMenu(item); setActivePath([]); setView({type:'home'}); setIsMenuOpen(false); window.scrollTo(0,0); }} className="text-3xl md:text-5xl font-serif font-light tracking-tight px-2 text-white">
                         {item}
                       </InteractiveLink>
                     ))}
@@ -410,20 +412,20 @@ export default function App() {
               </div>
               
               <div className="flex flex-col items-center gap-8 mt-12 w-full text-white">
-                <div className="flex flex-wrap justify-center gap-12">
-                   {isAdmin && <InteractiveLink onClick={() => { setEditingArticle(null); setView({type:'cms'}); setIsMenuOpen(false); }} className="text-xs tracking-[0.2em]">DASHBOARD</InteractiveLink>}
-                   {!isAdmin && !user && <InteractiveLink onClick={() => { signInWithPopup(auth, provider).then(() => setIsMenuOpen(false)); }} className="text-xs tracking-[0.2em]">LOGIN</InteractiveLink>}
+                <div className="flex flex-wrap justify-center gap-12 text-white/50">
+                   {isAdmin && <InteractiveLink onClick={() => { setEditingArticle(null); setView({type:'cms'}); setIsMenuOpen(false); }} className="text-xs tracking-[0.2em] text-white">DASHBOARD</InteractiveLink>}
+                   {!isAdmin && !user && <InteractiveLink onClick={() => { signInWithPopup(auth, provider).then(() => setIsMenuOpen(false)); }} className="text-xs tracking-[0.2em] text-white">LOGIN</InteractiveLink>}
                 </div>
-                <InteractiveLink onClick={() => { setView({type:'bookmarks'}); setIsMenuOpen(false); window.scrollTo(0,0); }} className="text-[11px] uppercase tracking-[0.5em] flex items-center gap-4 border border-white/10 px-12 py-5 rounded-full hover:bg-white hover:text-black transition-all font-black shadow-2xl">
+                <InteractiveLink onClick={() => { setView({type:'bookmarks'}); setIsMenuOpen(false); window.scrollTo(0,0); }} className="text-[11px] uppercase tracking-[0.5em] flex items-center gap-4 border border-white/10 px-12 py-5 rounded-full hover:bg-white hover:text-black transition-all font-black shadow-2xl text-white">
                   <Bookmark size={14} fill={userBookmarks.length > 0 ? "currentColor" : "none"} /> MY ARCHIVE ({userBookmarks.length})
                 </InteractiveLink>
               </div>
             </div>
 
-            <div className="flex flex-col md:flex-row justify-between items-end gap-12 border-t border-white/10 pt-12 pb-2 mt-auto text-white/30">
+            <div className="flex flex-col md:flex-row justify-between items-end gap-12 border-t border-white/10 pt-12 pb-4 mt-auto text-white/30">
               <SocialIconsList />
               <div className="flex flex-col items-end gap-6 text-[10px] uppercase tracking-[0.4em] font-black">
-                <div className="flex gap-6 items-center">
+                <div className="flex gap-6 items-center text-white">
                   {isAdmin ? (
                     <InteractiveLink onClick={() => { setEditingArticle(null); setView({type:'cms'}); setIsMenuOpen(false); }}>DASHBOARD</InteractiveLink>
                   ) : (
@@ -439,6 +441,7 @@ export default function App() {
       </AnimatePresence>
 
       <AnimatePresence mode="wait">
+        {/* 首頁 */}
         {view.type === 'home' && (
           <motion.main key="home" initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} className="pt-40 px-8 md:px-24 pb-40 text-white">
             <div className="flex flex-row items-start gap-12 mb-32">
@@ -464,7 +467,7 @@ export default function App() {
               </div>
             </div>
 
-            <div className="grid grid-cols-1">
+            <div className="grid grid-cols-1 text-white">
               {filteredArticles.map((art, index) => (
                 <motion.div key={art.id} initial={{ opacity: 0, x: -20 }} whileInView={{ opacity: 1, x: 0 }} viewport={{ once: true }} transition={{ delay: index * 0.05 }} onClick={() => { setView({ type: 'article', id: art.id }); window.scrollTo(0,0); }} className="group py-16 border-b border-white/5 flex flex-col md:flex-row justify-between items-start md:items-center cursor-pointer hover:bg-white/[0.02] transition-all px-8 -mx-8">
                   <div className="flex-1 space-y-4">
@@ -477,6 +480,7 @@ export default function App() {
                     <p className="text-[9px] uppercase tracking-widest text-white/20 font-mono">{new Date(art.publishDate.toDate()).toLocaleDateString()}</p>
                   </div>
                   <div className="mt-8 md:mt-0 flex items-center gap-4">
+                    {/* 嚴格對非管理員隱藏列表編輯鈕 */}
                     {isAdmin && <button onClick={(e) => { e.stopPropagation(); setEditingArticle(art); setView({type:'cms'}); }} className="p-3 rounded-full border border-white/10 hover:bg-white hover:text-black transition-all cursor-pointer"><Edit3 size={16} /></button>}
                     <div className="w-14 h-14 rounded-full border border-white/10 flex items-center justify-center group-hover:bg-white group-hover:text-black transition-all duration-700 text-white"><ArrowUpRight size={24}/></div>
                   </div>
@@ -486,6 +490,7 @@ export default function App() {
           </motion.main>
         )}
 
+        {/* 文章內容視圖 */}
         {view.type === 'article' && (
           <motion.article key="article" initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} transition={transition} className="pt-40 px-8 md:px-24 max-w-6xl mx-auto pb-60 text-white font-sans">
             <div className="flex justify-between items-center mb-16 border-b border-white/5 pb-8">
@@ -495,7 +500,8 @@ export default function App() {
               </div>
               <div className="flex items-center gap-6">
                 <button onClick={() => toggleBookmark(view.id)} className={`p-3 rounded-full border transition-all cursor-pointer ${userBookmarks.includes(view.id) ? 'bg-white text-[#368C84] shadow-xl' : 'border-white/10 hover:border-white/40'}`}><Bookmark size={16} fill={userBookmarks.includes(view.id) ? "currentColor" : "none"} /></button>
-                {isAdmin && <button onClick={() => { setEditingArticle(articles.find(a => a.id === view.id)); setView({type:'cms'}); }} className="text-[10px] uppercase tracking-widest text-white/40 border border-white/10 px-6 py-2 rounded-full font-black shadow-xl px-4 py-1.5 transition-all hover:bg-white hover:text-black">EDIT ARCHIVE</button>}
+                {/* 嚴格對非管理員隱藏內文編輯鈕 */}
+                {isAdmin && <button onClick={() => { setEditingArticle(articles.find(a => a.id === view.id)); setView({type:'cms'}); }} className="text-[10px] uppercase tracking-widest text-white/40 border border-white/10 px-4 py-1.5 rounded-full font-black shadow-xl transition-all hover:bg-white hover:text-black">EDIT ARCHIVE</button>}
               </div>
             </div>
             
@@ -549,17 +555,16 @@ export default function App() {
                         Submit <Send size={18}/>
                       </button>
                     ) : (
-                      <button onClick={() => signInWithPopup(auth, provider)} className="absolute bottom-8 right-10 bg-white/10 text-white px-10 py-4 rounded-full font-black text-xs cursor-pointer hover:bg-white/20 transition-all">SIGN IN TO POST</button>
+                      <button onClick={() => signInWithPopup(auth, provider)} className="absolute bottom-8 right-10 bg-white/10 text-white px-10 py-4 rounded-full font-black text-xs cursor-pointer hover:bg-white/20 transition-all font-black tracking-widest">SIGN IN TO POST</button>
                     )}
                   </div>
                 </div>
 
-                {/* 修改重點：整合導覽與推薦 (與 image_7ed05f 同步) */}
+                {/* 整合導覽區塊 */}
                 <div className="pt-32 border-t border-white/10 flex flex-col items-center">
                     <p className="text-[10px] uppercase tracking-[0.6em] text-white/20 mb-12 italic font-black">Next Exhibition</p>
                     
                     <div className="w-full flex flex-row items-center justify-between gap-8 md:gap-16 px-4">
-                        {/* 左側：Back Button */}
                         <div onClick={() => { setView({type:'home'}); window.scrollTo(0,0); }} className="flex items-center gap-6 group cursor-pointer text-white flex-shrink-0">
                             <div className="p-4 md:p-6 rounded-full border border-white/20 group-hover:bg-white group-hover:text-black transition-all duration-700 shadow-2xl flex items-center justify-center">
                                 <ArrowLeft size={24}/>
@@ -567,13 +572,8 @@ export default function App() {
                             <span className="text-[10px] md:text-[12px] uppercase tracking-[0.5em] text-white/30 group-hover:text-white whitespace-nowrap font-black hidden lg:inline">Back to List</span>
                         </div>
 
-                        {/* 中間：推薦文章標題 */}
                         {articles.filter(a => a.id !== view.id)[0] && (
-                           <motion.div 
-                              whileHover={{ scale: 1.05 }} 
-                              onClick={() => { setView({type:'article', id: articles.filter(a => a.id !== view.id)[0].id}); window.scrollTo(0,0); }} 
-                              className="flex flex-col items-center group cursor-pointer max-w-xl text-center"
-                           >
+                           <motion.div whileHover={{ scale: 1.05 }} onClick={() => { setView({type:'article', id: articles.filter(a => a.id !== view.id)[0].id}); window.scrollTo(0,0); }} className="flex flex-col items-center group cursor-pointer max-w-xl text-center">
                               <h4 className="text-3xl md:text-5xl font-serif text-white transition-all leading-tight tracking-tighter group-hover:italic group-hover:font-black">
                                  {articles.filter(a => a.id !== view.id)[0].title}
                               </h4>
@@ -581,7 +581,6 @@ export default function App() {
                            </motion.div>
                         )}
 
-                        {/* 右側：Home Button */}
                         <div onClick={() => { setView({type:'home'}); setActiveMenu('All'); window.scrollTo(0,0); }} className="flex items-center gap-6 group cursor-pointer text-white flex-shrink-0">
                             <span className="text-[10px] md:text-[12px] uppercase tracking-[0.5em] text-white/30 group-hover:text-white whitespace-nowrap font-black hidden lg:inline">Return Home</span>
                             <div className="p-4 md:p-6 rounded-full border border-white/20 group-hover:bg-white group-hover:text-black transition-all duration-700 shadow-2xl flex items-center justify-center">
@@ -615,12 +614,6 @@ export default function App() {
 
         {view.type === 'cms' && isAdmin && (
           <CMSDashboard user={user} setView={setView} editData={editingArticle} showMessage={showMessage} menuList={dynamicMenuItems} socialLinks={socialLinks} baseMenuItems={baseMenuItems} />
-        )}
-      </AnimatePresence>
-
-      <AnimatePresence>
-        {showBackToTop && (
-          <motion.button initial={{ opacity: 0, scale: 0 }} animate={{ opacity: 1, scale: 1 }} exit={{ opacity: 0, scale: 0 }} onClick={() => window.scrollTo({ top: 0, behavior: 'smooth' })} className="fixed bottom-12 right-12 w-16 h-16 bg-white text-black rounded-full shadow-2xl flex items-center justify-center z-[140] hover:scale-110 transition-all cursor-pointer"><ChevronUp size={28} strokeWidth={4}/></motion.button>
         )}
       </AnimatePresence>
 
