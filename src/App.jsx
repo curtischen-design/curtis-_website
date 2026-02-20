@@ -4,7 +4,7 @@ import {
   ArrowUpRight, Menu, X, ArrowLeft, Search, 
   Facebook, Youtube, Mic, ShieldCheck, Hash, 
   Filter, Plus, ChevronUp, Home, ArrowRight, ChevronRight, Layers, Tag, Bookmark, Share2, Edit3, CheckCircle2, ChevronDown, Heart, MessageSquare, Trash2, History, Send, 
-  Instagram, Music, Headphones, Link as LinkIcon, Calendar, Settings2, XCircle, User as UserIcon
+  Instagram, Music, Headphones, Link as LinkIcon, Calendar, Settings2, XCircle, User as UserIcon, FileText, Globe
 } from 'lucide-react';
 
 // Firebase 核心模組
@@ -61,40 +61,48 @@ const InteractiveLink = ({ children, onClick, className = "" }) => (
 );
 
 /**
- * 🛠️ CMS 管理員發文與編輯後台
+ * 🛠️ CMS 管理員發文與編輯後台 (支援草稿與精確時間)
  */
 const CMSDashboard = ({ user, setView, editData, showMessage, menuList, socialLinks, baseMenuItems }) => {
   const [title, setTitle] = useState(editData?.title || '');
   const [mainMenu, setMainMenu] = useState(editData?.mainMenu || menuList[1] || '');
   const [pathInput, setPathInput] = useState(editData?.subPath?.join('/') || '');
   const [content, setContent] = useState(editData?.content || '');
+  
+  // 變更 1：日期時間格式化 (支援 datetime-local)
+  const formatForInput = (date) => {
+    const d = new Date(date.getTime() - date.getTimezoneOffset() * 60000);
+    return d.toISOString().slice(0, 16);
+  };
+  
   const [pubDate, setPubDate] = useState(
     editData?.publishDate 
-    ? new Date(editData.publishDate.toDate()).toISOString().split('T')[0] 
-    : new Date().toISOString().split('T')[0]
+    ? formatForInput(editData.publishDate.toDate()) 
+    : formatForInput(new Date())
   );
-  const [loading, setLoading] = useState(false);
 
+  const [loading, setLoading] = useState(false);
   const [links, setLinks] = useState(socialLinks);
   const [customMenus, setCustomMenus] = useState(baseMenuItems || []);
   const [newMenuInput, setNewMenuInput] = useState("");
 
-  const handlePublish = async (e) => {
-    e.preventDefault();
+  // 變更 2：處理發布與草稿邏輯
+  const handlePublish = async (isDraft = false) => {
     setLoading(true);
     try {
       const articleData = {
         title, mainMenu: mainMenu.trim() || "未分類",
         subPath: pathInput.split('/').map(p => p.trim()).filter(p => p !== ''),
         content, authorEmail: user.email,
-        publishDate: Timestamp.fromDate(new Date(pubDate))
+        publishDate: Timestamp.fromDate(new Date(pubDate)),
+        status: isDraft ? 'draft' : 'published' // 新增狀態欄位
       };
       if (editData?.id) {
         await updateDoc(doc(db, 'artifacts', appId, 'public', 'data', 'articles', editData.id), { ...articleData, lastModified: Timestamp.now() });
-        showMessage('檔案已更新');
+        showMessage(isDraft ? '草稿已更新' : '內容已公開');
       } else {
         await addDoc(collection(db, 'artifacts', appId, 'public', 'data', 'articles'), articleData);
-        showMessage('發布成功');
+        showMessage(isDraft ? '草稿已儲存' : '發布成功');
       }
       setView({ type: 'home' });
     } catch (err) { showMessage('操作失敗'); } finally { setLoading(false); }
@@ -108,20 +116,6 @@ const CMSDashboard = ({ user, setView, editData, showMessage, menuList, socialLi
     } catch (err) { showMessage('更新失敗'); }
   };
 
-  const removeMenu = (item) => {
-    const updated = customMenus.filter(m => m !== item);
-    setCustomMenus(updated);
-    updateSettings('menus', { items: updated });
-  };
-
-  const addMenu = () => {
-    if (!newMenuInput.trim() || customMenus.includes(newMenuInput)) return;
-    const updated = [...customMenus, newMenuInput.trim()];
-    setCustomMenus(updated);
-    updateSettings('menus', { items: updated });
-    setNewMenuInput("");
-  };
-
   return (
     <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} className="pt-32 px-8 md:px-24 max-w-4xl mx-auto pb-40 text-white font-sans">
       <div className="flex justify-between items-end mb-16 border-b border-white/10 pb-8">
@@ -129,7 +123,7 @@ const CMSDashboard = ({ user, setView, editData, showMessage, menuList, socialLi
         <InteractiveLink onClick={() => setView({ type: 'home' })} className="text-white/30 text-[10px] tracking-widest uppercase">Back</InteractiveLink>
       </div>
 
-      <form onSubmit={handlePublish} className="space-y-16">
+      <div className="space-y-16">
         <div className="grid grid-cols-1 md:grid-cols-2 gap-12">
           <div className="space-y-4">
             <label className="text-[10px] uppercase tracking-widest text-white/40 font-bold ml-1">1. 選單位置</label>
@@ -141,49 +135,72 @@ const CMSDashboard = ({ user, setView, editData, showMessage, menuList, socialLi
             </div>
           </div>
           <div className="space-y-4">
-            <label className="text-[10px] uppercase tracking-widest text-white/40 font-bold ml-1 flex items-center gap-2"><Calendar size={12}/> 2. 發布日期</label>
-            <input type="date" className="w-full bg-white/5 border border-white/10 rounded-full px-6 py-3 text-sm outline-none focus:border-[#368C84] transition-all" value={pubDate} onChange={e => setPubDate(e.target.value)} />
+            <label className="text-[10px] uppercase tracking-widest text-white/40 font-bold ml-1 flex items-center gap-2"><Calendar size={12}/> 2. 精確發布時間</label>
+            <input type="datetime-local" className="w-full bg-white/5 border border-white/10 rounded-full px-6 py-3 text-sm outline-none focus:border-[#368C84] transition-all" value={pubDate} onChange={e => setPubDate(e.target.value)} />
           </div>
         </div>
+
         <div className="space-y-4">
-          <label className="text-[10px] uppercase tracking-widest text-white/40 font-bold ml-1">3. 無限層級路徑</label>
-          <input className="w-full bg-transparent border-b border-white/10 py-2 text-lg outline-none focus:border-white text-white" value={pathInput} onChange={e => setPathInput(e.target.value)} placeholder="路徑/子路徑" />
+          <label className="text-[10px] uppercase tracking-widest text-white/40 font-bold ml-1">3. 無限層級路徑 (例如: 大一 / 生活)</label>
+          <input className="w-full bg-transparent border-b border-white/10 py-2 text-lg outline-none focus:border-white text-white" value={pathInput} onChange={e => setPathInput(e.target.value)} placeholder="Root / Path / Subpath" />
         </div>
+
         <div className="space-y-4">
           <label className="text-[10px] uppercase tracking-widest text-white/40 font-bold ml-1">4. 檔案標題</label>
           <input required className="w-full bg-transparent border-b border-white/10 py-4 text-3xl font-serif outline-none focus:border-[#368C84]" value={title} onChange={e => setTitle(e.target.value)} />
         </div>
+
         <div className="space-y-4">
           <label className="text-[10px] uppercase tracking-widest text-white/40 font-bold ml-1">5. 內容 (Markdown)</label>
-          <textarea required rows={12} className="w-full bg-black/10 border border-white/5 p-8 rounded-[40px] text-white/80 font-mono text-sm outline-none focus:border-[#368C84]/50 transition-all" value={content} onChange={e => setContent(e.target.value)} />
+          <textarea required rows={12} className="w-full bg-black/10 border border-white/5 p-8 rounded-[40px] text-white/80 font-mono text-sm leading-relaxed outline-none focus:border-[#368C84]/50 transition-all" value={content} onChange={e => setContent(e.target.value)} />
         </div>
-        <button disabled={loading} type="submit" className="w-full bg-white text-[#368C84] py-8 rounded-full font-bold uppercase tracking-[0.5em] hover:scale-[0.98] transition-all shadow-2xl">確認發布</button>
-      </form>
 
-      <div className="mt-40 space-y-12">
-        <div className="p-10 bg-white/5 rounded-[60px] border border-white/5 space-y-8 text-white">
-          <h3 className="text-[10px] uppercase tracking-[0.4em] text-white/30 flex items-center gap-3"><Settings2 size={14}/> 選單導覽管理</h3>
+        <div className="flex flex-col md:flex-row gap-6">
+          <button disabled={loading} onClick={() => handlePublish(false)} className="flex-1 bg-white text-[#368C84] py-8 rounded-full font-bold uppercase tracking-[0.5em] hover:scale-[0.98] transition-all shadow-2xl flex items-center justify-center gap-3">
+            <Globe size={18}/> 正式發布
+          </button>
+          <button disabled={loading} onClick={() => handlePublish(true)} className="flex-1 bg-white/10 border border-white/20 text-white py-8 rounded-full font-bold uppercase tracking-[0.5em] hover:bg-white/20 transition-all flex items-center justify-center gap-3">
+            <FileText size={18}/> 存為草稿
+          </button>
+        </div>
+      </div>
+
+      {/* 管理設定區 */}
+      <div className="mt-40 space-y-12 border-t border-white/10 pt-40">
+        <div className="p-10 bg-white/5 rounded-[60px] border border-white/5 space-y-8">
+          <h3 className="text-[10px] uppercase tracking-[0.4em] text-white/30 flex items-center gap-3"><Settings2 size={14}/> 導覽路徑管理</h3>
           <div className="flex flex-wrap gap-4">
             {customMenus.map(m => (
               <div key={m} className="flex items-center gap-2 bg-white/5 border border-white/10 px-4 py-2 rounded-full group">
                 <span className="text-xs uppercase tracking-widest text-white/60">{m}</span>
-                <button onClick={() => removeMenu(m)} className="text-white/20 hover:text-red-400 transition-colors cursor-pointer"><XCircle size={14}/></button>
+                <button onClick={() => {
+                  const updated = customMenus.filter(item => item !== m);
+                  setCustomMenus(updated);
+                  updateSettings('menus', { items: updated });
+                }} className="text-white/20 hover:text-red-400 transition-colors cursor-pointer"><XCircle size={14}/></button>
               </div>
             ))}
           </div>
           <div className="flex gap-4">
-            <input className="flex-1 bg-black/30 border border-white/5 rounded-full px-6 py-3 text-xs outline-none focus:border-[#368C84]" value={newMenuInput} onChange={e => setNewMenuInput(e.target.value)} placeholder="新增選單項目..." />
-            <button onClick={addMenu} className="px-8 py-3 bg-white text-black rounded-full font-black text-[10px] uppercase tracking-widest hover:scale-105 transition-all">Add</button>
+            <input className="flex-1 bg-black/30 border border-white/5 rounded-full px-6 py-3 text-xs outline-none focus:border-[#368C84]" value={newMenuInput} onChange={e => setNewMenuInput(e.target.value)} placeholder="新增自定義導覽名稱..." />
+            <button onClick={() => {
+               if (!newMenuInput.trim() || customMenus.includes(newMenuInput)) return;
+               const updated = [...customMenus, newMenuInput.trim()];
+               setCustomMenus(updated);
+               updateSettings('menus', { items: updated });
+               setNewMenuInput("");
+            }} className="px-8 py-3 bg-white text-black rounded-full font-black text-[10px] uppercase tracking-widest hover:scale-105 transition-all cursor-pointer">Add</button>
           </div>
+          <p className="text-[9px] text-white/20 italic">註：在此處刪除空白路徑後，全站選單將同步移除該分類建議。</p>
         </div>
 
         <div className="p-10 bg-white/5 rounded-[60px] border border-white/5 space-y-10 shadow-2xl">
-          <h3 className="text-[10px] uppercase tracking-[0.4em] text-white/30 flex items-center gap-3"><LinkIcon size={14}/> 社群連結設定</h3>
+          <h3 className="text-[10px] uppercase tracking-[0.4em] text-white/30 flex items-center gap-3"><LinkIcon size={14}/> 全站社群連結設定</h3>
           <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
             {Object.keys(links).map(key => (
               <div key={key} className="space-y-2">
                 <label className="text-[9px] uppercase tracking-widest text-white/20 ml-4 font-bold">{key}</label>
-                <input className="w-full bg-black/30 border border-white/5 rounded-full px-6 py-3 text-[11px] outline-none focus:border-[#368C84] text-white/60 transition-all" value={links[key]} onChange={e => setLinks({...links, [key]: e.target.value})} />
+                <input className="w-full bg-black/30 border border-white/5 rounded-full px-6 py-3 text-[11px] outline-none focus:border-[#368C84] text-white/60 transition-all" value={links[key] || ''} onChange={e => setLinks({...links, [key]: e.target.value})} placeholder={`Paste your ${key} URL...`} />
               </div>
             ))}
           </div>
@@ -284,14 +301,16 @@ export default function App() {
     return () => window.removeEventListener('scroll', handleScroll);
   }, [lastScrollY]);
 
+  // 變更：對非管理員過濾掉草稿
   const filteredArticles = useMemo(() => {
     return articles.filter(art => {
+      const isPublic = art.status === 'published';
       const mMenu = activeMenu === 'All' || art.mainMenu === activeMenu;
       const mPath = activePath.every((s, i) => art.subPath?.[i] === s);
       const mSearch = art.title.toLowerCase().includes(searchQuery.toLowerCase()) || art.content.toLowerCase().includes(searchQuery.toLowerCase());
-      return mMenu && mPath && mSearch;
+      return (isAdmin || isPublic) && mMenu && mPath && mSearch;
     });
-  }, [articles, activeMenu, activePath, searchQuery]);
+  }, [articles, activeMenu, activePath, searchQuery, isAdmin]);
 
   const toggleBookmark = async (id) => {
     if (!user) { showMessage('請先登入同步書籤'); signInWithPopup(auth, provider); return; }
@@ -346,7 +365,7 @@ export default function App() {
       {/* Toast */}
       <AnimatePresence>
         {message && (
-          <motion.div initial={{ y: -50, opacity: 0 }} animate={{ y: 0, opacity: 1 }} exit={{ y: -50, opacity: 0 }} className="fixed top-12 left-1/2 -translate-x-1/2 bg-white text-[#368C84] px-8 py-3 rounded-full shadow-2xl z-[200] flex items-center gap-3 font-black text-xs tracking-widest">
+          <motion.div initial={{ y: -50, opacity: 0 }} animate={{ y: 0, opacity: 1 }} exit={{ y: -50, opacity: 0 }} className="fixed top-12 left-1/2 -translate-x-1/2 bg-white text-[#368C84] px-8 py-3 rounded-full shadow-2xl z-[200] flex items-center gap-3 font-black text-xs tracking-widest uppercase">
             <CheckCircle2 size={16} /> {message}
           </motion.div>
         )}
@@ -365,7 +384,7 @@ export default function App() {
         </div>
       </div>
 
-      {/* 頂部導航 (嚴格對非管理員隱藏 Dashboard) */}
+      {/* 頂部導航 */}
       <motion.nav animate={{ y: showHeader ? 0 : -100 }} className="fixed top-0 left-0 w-full p-8 flex justify-between items-center z-[110] mix-blend-difference font-black tracking-tighter uppercase italic">
         <div onClick={() => { setView({type:'home'}); setActiveMenu('All'); window.scrollTo(0,0); }} className="text-xl cursor-pointer hover:opacity-50 transition-all">Curtis Chen</div>
         
@@ -389,7 +408,7 @@ export default function App() {
         )}
       </AnimatePresence>
 
-      {/* 全螢幕對稱選單 (嚴格邏輯判斷) */}
+      {/* 全螢幕對稱選單 */}
       <AnimatePresence>
         {isMenuOpen && (
           <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} transition={transition} className="fixed inset-0 bg-[#368C84] z-[120] flex flex-col p-12 overflow-hidden select-none">
@@ -467,20 +486,20 @@ export default function App() {
               </div>
             </div>
 
-            <div className="grid grid-cols-1 text-white">
+            <div className="grid grid-cols-1">
               {filteredArticles.map((art, index) => (
-                <motion.div key={art.id} initial={{ opacity: 0, x: -20 }} whileInView={{ opacity: 1, x: 0 }} viewport={{ once: true }} transition={{ delay: index * 0.05 }} onClick={() => { setView({ type: 'article', id: art.id }); window.scrollTo(0,0); }} className="group py-16 border-b border-white/5 flex flex-col md:flex-row justify-between items-start md:items-center cursor-pointer hover:bg-white/[0.02] transition-all px-8 -mx-8">
+                <motion.div key={art.id} initial={{ opacity: 0, x: -20 }} whileInView={{ opacity: 1, x: 0 }} viewport={{ once: true }} transition={{ delay: index * 0.05 }} onClick={() => { setView({ type: 'article', id: art.id }); window.scrollTo(0,0); }} className="group py-16 border-b border-white/5 flex flex-col md:flex-row justify-between items-start md:items-center cursor-pointer hover:bg-white/[0.02] transition-all px-8 -mx-8 relative">
                   <div className="flex-1 space-y-4">
                     <div className="flex items-center gap-3 flex-wrap text-[10px] uppercase tracking-widest text-white/40 italic font-bold">
                       <span>{art.mainMenu}</span>
                       {art.subPath?.map((p, i) => <span key={i} className="flex items-center gap-1 opacity-40"><ChevronRight size={10}/> {p}</span>)}
                       {userBookmarks.includes(art.id) && <Bookmark size={10} fill="currentColor" className="ml-2 text-[#368C84] bg-white rounded-full p-0.5" />}
+                      {art.status === 'draft' && <span className="bg-yellow-500/20 text-yellow-500 px-2 rounded-full text-[8px] tracking-widest ml-2 border border-yellow-500/20">DRAFT</span>}
                     </div>
-                    <h3 className="text-4xl md:text-7xl font-serif transition-all duration-1000 leading-tight group-hover:font-black group-hover:italic">{art.title}</h3>
+                    <h3 className="text-4xl md:text-7xl font-serif transition-all duration-1000 text-white leading-tight group-hover:font-black group-hover:italic">{art.title}</h3>
                     <p className="text-[9px] uppercase tracking-widest text-white/20 font-mono">{new Date(art.publishDate.toDate()).toLocaleDateString()}</p>
                   </div>
                   <div className="mt-8 md:mt-0 flex items-center gap-4">
-                    {/* 嚴格對非管理員隱藏列表編輯鈕 */}
                     {isAdmin && <button onClick={(e) => { e.stopPropagation(); setEditingArticle(art); setView({type:'cms'}); }} className="p-3 rounded-full border border-white/10 hover:bg-white hover:text-black transition-all cursor-pointer"><Edit3 size={16} /></button>}
                     <div className="w-14 h-14 rounded-full border border-white/10 flex items-center justify-center group-hover:bg-white group-hover:text-black transition-all duration-700 text-white"><ArrowUpRight size={24}/></div>
                   </div>
@@ -493,15 +512,14 @@ export default function App() {
         {/* 文章內容視圖 */}
         {view.type === 'article' && (
           <motion.article key="article" initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} transition={transition} className="pt-40 px-8 md:px-24 max-w-6xl mx-auto pb-60 text-white font-sans">
-            <div className="flex justify-between items-center mb-16 border-b border-white/5 pb-8">
+            <div className="flex justify-between items-center mb-16 border-b border-white/5 pb-8 text-white">
               <div className="flex items-center gap-4 text-[10px] uppercase tracking-widest text-white/20 font-serif italic">
                 <InteractiveLink onClick={() => { setView({type:'home'}); setActiveMenu(articles.find(a => a.id === view.id).mainMenu); }}>{articles.find(a => a.id === view.id).mainMenu}</InteractiveLink>
                 {articles.find(a => a.id === view.id)?.subPath?.map((p, i) => (<React.Fragment key={i}><ChevronRight size={10} /><span className="text-white/40">{p}</span></React.Fragment>))}
               </div>
               <div className="flex items-center gap-6">
                 <button onClick={() => toggleBookmark(view.id)} className={`p-3 rounded-full border transition-all cursor-pointer ${userBookmarks.includes(view.id) ? 'bg-white text-[#368C84] shadow-xl' : 'border-white/10 hover:border-white/40'}`}><Bookmark size={16} fill={userBookmarks.includes(view.id) ? "currentColor" : "none"} /></button>
-                {/* 嚴格對非管理員隱藏內文編輯鈕 */}
-                {isAdmin && <button onClick={() => { setEditingArticle(articles.find(a => a.id === view.id)); setView({type:'cms'}); }} className="text-[10px] uppercase tracking-widest text-white/40 border border-white/10 px-4 py-1.5 rounded-full font-black shadow-xl transition-all hover:bg-white hover:text-black">EDIT ARCHIVE</button>}
+                {isAdmin && <button onClick={() => { setEditingArticle(articles.find(a => a.id === view.id)); setView({type:'cms'}); }} className="flex items-center gap-3 text-[10px] uppercase tracking-widest text-white/40 border border-white/10 px-6 py-2 rounded-full font-black shadow-xl px-4 py-1.5 transition-all hover:bg-white hover:text-black uppercase">Edit exhibit</button>}
               </div>
             </div>
             
@@ -530,12 +548,12 @@ export default function App() {
                   <div className="space-y-12">
                     {comments.map(c => (
                       <div key={c.id} className="group flex gap-6 items-start">
-                        <div className="w-12 h-12 rounded-full bg-white/5 border border-white/10 flex-shrink-0 overflow-hidden shadow-2xl">
-                          {c.userPhoto ? <img src={c.userPhoto} alt="" className="w-full h-full object-cover" /> : <div className="w-full h-full flex items-center justify-center text-white/10 italic font-black font-serif">?</div>}
+                        <div className="w-12 h-12 rounded-full bg-white/5 border border-white/10 flex-shrink-0 overflow-hidden shadow-2xl text-white">
+                          {c.userPhoto ? <img src={c.userPhoto} alt="" className="w-full h-full object-cover" /> : <div className="w-full h-full flex items-center justify-center text-white/10 italic font-black font-serif uppercase">?</div>}
                         </div>
                         <div className="flex-1 space-y-2 text-white">
                           <div className="flex items-center justify-between">
-                            <div className="flex items-center gap-3">
+                            <div className="flex items-center gap-3 text-white">
                               <span className="text-xs font-black text-white/80">{c.userName}</span>
                               <span className="text-[9px] text-white/20 font-mono italic">{new Date(c.createdAt.toDate()).toLocaleDateString()}</span>
                             </div>
@@ -563,7 +581,6 @@ export default function App() {
                 {/* 整合導覽區塊 */}
                 <div className="pt-32 border-t border-white/10 flex flex-col items-center">
                     <p className="text-[10px] uppercase tracking-[0.6em] text-white/20 mb-12 italic font-black">Next Exhibition</p>
-                    
                     <div className="w-full flex flex-row items-center justify-between gap-8 md:gap-16 px-4">
                         <div onClick={() => { setView({type:'home'}); window.scrollTo(0,0); }} className="flex items-center gap-6 group cursor-pointer text-white flex-shrink-0">
                             <div className="p-4 md:p-6 rounded-full border border-white/20 group-hover:bg-white group-hover:text-black transition-all duration-700 shadow-2xl flex items-center justify-center">
@@ -571,7 +588,6 @@ export default function App() {
                             </div>
                             <span className="text-[10px] md:text-[12px] uppercase tracking-[0.5em] text-white/30 group-hover:text-white whitespace-nowrap font-black hidden lg:inline">Back to List</span>
                         </div>
-
                         {articles.filter(a => a.id !== view.id)[0] && (
                            <motion.div whileHover={{ scale: 1.05 }} onClick={() => { setView({type:'article', id: articles.filter(a => a.id !== view.id)[0].id}); window.scrollTo(0,0); }} className="flex flex-col items-center group cursor-pointer max-w-xl text-center">
                               <h4 className="text-3xl md:text-5xl font-serif text-white transition-all leading-tight tracking-tighter group-hover:italic group-hover:font-black">
@@ -580,7 +596,6 @@ export default function App() {
                               <ArrowRight size={24} className="mt-6 text-white/20 group-hover:text-white transition-colors" />
                            </motion.div>
                         )}
-
                         <div onClick={() => { setView({type:'home'}); setActiveMenu('All'); window.scrollTo(0,0); }} className="flex items-center gap-6 group cursor-pointer text-white flex-shrink-0">
                             <span className="text-[10px] md:text-[12px] uppercase tracking-[0.5em] text-white/30 group-hover:text-white whitespace-nowrap font-black hidden lg:inline">Return Home</span>
                             <div className="p-4 md:p-6 rounded-full border border-white/20 group-hover:bg-white group-hover:text-black transition-all duration-700 shadow-2xl flex items-center justify-center">
@@ -620,7 +635,7 @@ export default function App() {
       <footer className="p-12 md:p-24 border-t border-white/5 flex flex-col md:flex-row justify-between items-center gap-8 text-[8px] text-white/10 uppercase tracking-[0.6em] font-light italic">
         <SocialIconsList />
         <InteractiveLink className="font-black text-white" onClick={() => setView({type:'home'})}>© 2026 CURTIS CHEN — MUSEUM BLOG ARCHIVE</InteractiveLink>
-        <div className="flex items-center gap-8 transition-all hover:text-white/40 font-black"><ShieldCheck size={10}/> PRIVATE ENCRYPTION ACTIVE</div>
+        <div className="flex items-center gap-8 transition-all hover:text-white/40 font-black uppercase"><ShieldCheck size={10}/> Private Encryption Active</div>
       </footer>
     </div>
   );
