@@ -172,7 +172,7 @@ const CMSDashboard = ({ user, setView, editData, showMessage, menuList, socialLi
             ))}
           </div>
           <div className="flex gap-4">
-            <input className="flex-1 bg-black/30 border border-white/5 rounded-full px-6 py-3 text-xs outline-none focus:border-[#368C84]" value={newMenuInput} onChange={e => setNewMenuInput(e.target.value)} placeholder="新增預設選單項目..." />
+            <input className="flex-1 bg-black/30 border border-white/5 rounded-full px-6 py-3 text-xs outline-none focus:border-[#368C84]" value={newMenuInput} onChange={e => setNewMenuInput(e.target.value)} placeholder="新增選單項目..." />
             <button onClick={addMenu} className="px-8 py-3 bg-white text-black rounded-full font-black text-[10px] uppercase tracking-widest hover:scale-105 transition-all">Add</button>
           </div>
         </div>
@@ -344,7 +344,6 @@ export default function App() {
         .vertical-text { writing-mode: vertical-rl; text-orientation: mixed; }
       `}</style>
 
-      {/* Toast */}
       <AnimatePresence>
         {message && (
           <motion.div initial={{ y: -50, opacity: 0 }} animate={{ y: 0, opacity: 1 }} exit={{ y: -50, opacity: 0 }} className="fixed top-12 left-1/2 -translate-x-1/2 bg-white text-[#368C84] px-8 py-3 rounded-full shadow-2xl z-[200] flex items-center gap-3 font-black text-xs tracking-widest">
@@ -353,7 +352,6 @@ export default function App() {
         )}
       </AnimatePresence>
 
-      {/* Hover 進度條工具列 */}
       <div className="fixed top-0 left-0 right-0 h-10 group z-[150] cursor-default">
         <motion.div className="h-1 bg-white origin-left shadow-[0_0_15px_rgba(255,255,255,0.3)]" style={{ scaleX }} />
         <div className="opacity-0 group-hover:opacity-100 transition-all duration-500 absolute top-2 left-0 right-0 flex justify-center pointer-events-none">
@@ -366,10 +364,8 @@ export default function App() {
         </div>
       </div>
 
-      {/* 頂部導航 (Dashboard 僅限管理員顯示) */}
       <motion.nav animate={{ y: showHeader ? 0 : -100 }} className="fixed top-0 left-0 w-full p-8 flex justify-between items-center z-[110] mix-blend-difference font-black tracking-tighter uppercase italic">
         <div onClick={() => { setView({type:'home'}); setActiveMenu('All'); window.scrollTo(0,0); }} className="text-xl cursor-pointer hover:opacity-50 transition-all">Curtis Chen</div>
-        
         <div className="flex items-center gap-6">
           <div className="hidden md:flex items-center gap-6 text-[9px] tracking-[0.3em] font-black">
             {isAdmin && <InteractiveLink onClick={() => { setEditingArticle(null); setView({type:'cms'}); }}>Dashboard</InteractiveLink>}
@@ -381,6 +377,7 @@ export default function App() {
         </div>
       </motion.nav>
 
+      {/* 搜尋視窗 */}
       <AnimatePresence>
         {isSearchOpen && (
           <motion.div initial={{ opacity: 0, y: -20 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: -20 }} className="fixed top-24 left-0 w-full px-8 md:px-24 z-[105]">
@@ -389,11 +386,15 @@ export default function App() {
         )}
       </AnimatePresence>
 
-      {/* 全螢幕選單 (新增 SEARCH / DASHBOARD / LOGIN 功能) */}
+      {/* 全螢幕對稱選單 */}
       <AnimatePresence>
         {isMenuOpen && (
           <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} transition={transition} className="fixed inset-0 bg-[#368C84] z-[120] flex flex-col p-12 overflow-hidden select-none">
-            <div className="flex justify-end"><button onClick={() => setIsMenuOpen(false)} className="hover:rotate-90 transition-all duration-500 cursor-pointer"><X size={48} strokeWidth={1}/></button></div>
+            {/* 頂部按鈕區：搜尋與關閉擺在一起 */}
+            <div className="flex justify-end items-center gap-8">
+              <button onClick={() => { setIsSearchOpen(true); setIsMenuOpen(false); }} className="hover:opacity-50 transition-all cursor-pointer"><Search size={28} color="white"/></button>
+              <button onClick={() => setIsMenuOpen(false)} className="hover:rotate-90 transition-all duration-500 cursor-pointer"><X size={48} strokeWidth={1} color="white"/></button>
+            </div>
             
             <div className="flex-grow flex flex-col items-center justify-around py-24 max-h-[85vh]">
               <div className="flex flex-col items-center gap-12 md:gap-20 w-full text-white">
@@ -408,20 +409,18 @@ export default function App() {
                 ))}
               </div>
               
-              <div className="flex flex-col items-center gap-8 mt-12 w-full">
-                <div className="flex flex-wrap justify-center gap-8 md:gap-12">
-                   <InteractiveLink onClick={() => { setIsSearchOpen(true); setIsMenuOpen(false); }} className="text-xs tracking-[0.2em]">SEARCH</InteractiveLink>
+              <div className="flex flex-col items-center gap-8 mt-12 w-full text-white">
+                <div className="flex flex-wrap justify-center gap-12">
                    {isAdmin && <InteractiveLink onClick={() => { setEditingArticle(null); setView({type:'cms'}); setIsMenuOpen(false); }} className="text-xs tracking-[0.2em]">DASHBOARD</InteractiveLink>}
                    {!isAdmin && !user && <InteractiveLink onClick={() => { signInWithPopup(auth, provider).then(() => setIsMenuOpen(false)); }} className="text-xs tracking-[0.2em]">LOGIN</InteractiveLink>}
                 </div>
-
                 <InteractiveLink onClick={() => { setView({type:'bookmarks'}); setIsMenuOpen(false); window.scrollTo(0,0); }} className="text-[11px] uppercase tracking-[0.5em] flex items-center gap-4 border border-white/10 px-12 py-5 rounded-full hover:bg-white hover:text-black transition-all font-black shadow-2xl">
                   <Bookmark size={14} fill={userBookmarks.length > 0 ? "currentColor" : "none"} /> MY ARCHIVE ({userBookmarks.length})
                 </InteractiveLink>
               </div>
             </div>
 
-            <div className="flex flex-col md:flex-row justify-between items-end gap-12 border-t border-white/10 pt-12 pb-4 mt-auto text-white/30">
+            <div className="flex flex-col md:flex-row justify-between items-end gap-12 border-t border-white/10 pt-12 pb-2 mt-auto text-white/30">
               <SocialIconsList />
               <div className="flex flex-col items-end gap-6 text-[10px] uppercase tracking-[0.4em] font-black">
                 <div className="flex gap-6 items-center">
@@ -440,7 +439,6 @@ export default function App() {
       </AnimatePresence>
 
       <AnimatePresence mode="wait">
-        {/* 首頁 */}
         {view.type === 'home' && (
           <motion.main key="home" initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} className="pt-40 px-8 md:px-24 pb-40 text-white">
             <div className="flex flex-row items-start gap-12 mb-32">
@@ -467,7 +465,7 @@ export default function App() {
             </div>
 
             <div className="grid grid-cols-1">
-              {filteredArticles.length === 0 ? <div className="py-40 text-white/5 font-serif italic text-3xl text-center border border-dashed border-white/5 mt-10 rounded-[60px]">Archive empty.</div> : filteredArticles.map((art, index) => (
+              {filteredArticles.map((art, index) => (
                 <motion.div key={art.id} initial={{ opacity: 0, x: -20 }} whileInView={{ opacity: 1, x: 0 }} viewport={{ once: true }} transition={{ delay: index * 0.05 }} onClick={() => { setView({ type: 'article', id: art.id }); window.scrollTo(0,0); }} className="group py-16 border-b border-white/5 flex flex-col md:flex-row justify-between items-start md:items-center cursor-pointer hover:bg-white/[0.02] transition-all px-8 -mx-8">
                   <div className="flex-1 space-y-4">
                     <div className="flex items-center gap-3 flex-wrap text-[10px] uppercase tracking-widest text-white/40 italic font-bold">
@@ -475,7 +473,7 @@ export default function App() {
                       {art.subPath?.map((p, i) => <span key={i} className="flex items-center gap-1 opacity-40"><ChevronRight size={10}/> {p}</span>)}
                       {userBookmarks.includes(art.id) && <Bookmark size={10} fill="currentColor" className="ml-2 text-[#368C84] bg-white rounded-full p-0.5" />}
                     </div>
-                    <h3 className="text-4xl md:text-7xl font-serif transition-all duration-1000 text-white leading-tight group-hover:font-black group-hover:italic">{art.title}</h3>
+                    <h3 className="text-4xl md:text-7xl font-serif transition-all duration-1000 leading-tight group-hover:font-black group-hover:italic">{art.title}</h3>
                     <p className="text-[9px] uppercase tracking-widest text-white/20 font-mono">{new Date(art.publishDate.toDate()).toLocaleDateString()}</p>
                   </div>
                   <div className="mt-8 md:mt-0 flex items-center gap-4">
@@ -488,17 +486,16 @@ export default function App() {
           </motion.main>
         )}
 
-        {/* 文章內容視圖 */}
         {view.type === 'article' && (
-          <motion.article key="article" initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} transition={transition} className="pt-40 px-8 md:px-24 max-w-5xl mx-auto pb-60 text-white">
-            <div className="flex justify-between items-center mb-16 border-b border-white/5 pb-8 text-white">
+          <motion.article key="article" initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} transition={transition} className="pt-40 px-8 md:px-24 max-w-6xl mx-auto pb-60 text-white font-sans">
+            <div className="flex justify-between items-center mb-16 border-b border-white/5 pb-8">
               <div className="flex items-center gap-4 text-[10px] uppercase tracking-widest text-white/20 font-serif italic">
                 <InteractiveLink onClick={() => { setView({type:'home'}); setActiveMenu(articles.find(a => a.id === view.id).mainMenu); }}>{articles.find(a => a.id === view.id).mainMenu}</InteractiveLink>
                 {articles.find(a => a.id === view.id)?.subPath?.map((p, i) => (<React.Fragment key={i}><ChevronRight size={10} /><span className="text-white/40">{p}</span></React.Fragment>))}
               </div>
               <div className="flex items-center gap-6">
                 <button onClick={() => toggleBookmark(view.id)} className={`p-3 rounded-full border transition-all cursor-pointer ${userBookmarks.includes(view.id) ? 'bg-white text-[#368C84] shadow-xl' : 'border-white/10 hover:border-white/40'}`}><Bookmark size={16} fill={userBookmarks.includes(view.id) ? "currentColor" : "none"} /></button>
-                {isAdmin && <InteractiveLink onClick={() => { setEditingArticle(articles.find(a => a.id === view.id)); setView({type:'cms'}); }} className="text-[10px] uppercase tracking-widest text-white/40 border border-white/10 px-6 py-2 rounded-full font-black shadow-xl px-4 py-1.5">EDIT ARCHIVE</InteractiveLink>}
+                {isAdmin && <button onClick={() => { setEditingArticle(articles.find(a => a.id === view.id)); setView({type:'cms'}); }} className="text-[10px] uppercase tracking-widest text-white/40 border border-white/10 px-6 py-2 rounded-full font-black shadow-xl px-4 py-1.5 transition-all hover:bg-white hover:text-black">EDIT ARCHIVE</button>}
               </div>
             </div>
             
@@ -528,7 +525,7 @@ export default function App() {
                     {comments.map(c => (
                       <div key={c.id} className="group flex gap-6 items-start">
                         <div className="w-12 h-12 rounded-full bg-white/5 border border-white/10 flex-shrink-0 overflow-hidden shadow-2xl">
-                          {c.userPhoto ? <img src={c.userPhoto} alt="" className="w-full h-full object-cover" /> : <div className="w-full h-full flex items-center justify-center text-white/10 italic font-black">?</div>}
+                          {c.userPhoto ? <img src={c.userPhoto} alt="" className="w-full h-full object-cover" /> : <div className="w-full h-full flex items-center justify-center text-white/10 italic font-black font-serif">?</div>}
                         </div>
                         <div className="flex-1 space-y-2 text-white">
                           <div className="flex items-center justify-between">
@@ -557,32 +554,39 @@ export default function App() {
                   </div>
                 </div>
 
-                {/* 推薦閱讀 */}
-                <div className="border-t border-white/10 pt-32 mb-40 text-center flex flex-col items-center">
-                   <p className="text-[10px] uppercase tracking-[0.6em] text-white/20 mb-12 italic font-black">Next Exhibition</p>
-                   {articles.filter(a => a.id !== view.id)[0] && (
-                     <motion.div whileHover={{ scale: 1.02 }} onClick={() => { setView({type:'article', id: articles.filter(a => a.id !== view.id)[0].id}); window.scrollTo(0,0); }} className="group cursor-pointer max-w-2xl px-4">
-                       <h4 className="text-4xl md:text-6xl font-serif text-white transition-all leading-tight tracking-tighter group-hover:italic group-hover:font-black">{articles.filter(a => a.id !== view.id)[0].title}</h4>
-                       <div className="flex justify-center mt-12"><motion.div className="w-20 h-20 rounded-full border border-white/10 flex items-center justify-center group-hover:bg-white group-hover:text-black transition-all duration-700 shadow-2xl"><ArrowRight size={32}/></motion.div></div>
-                     </motion.div>
-                   )}
-                </div>
-
-                {/* 置中導覽列：與 image_7ed05f.png 完美同步 */}
-                <div className="flex flex-row justify-center items-center gap-12 md:gap-24 pt-20 border-t border-white/10">
-                    <div onClick={() => { setView({type:'home'}); window.scrollTo(0,0); }} className="flex items-center gap-6 group cursor-pointer text-white">
-                        <div className="p-4 md:p-6 rounded-full border border-white/20 group-hover:bg-white group-hover:text-black transition-all duration-700 shadow-2xl flex items-center justify-center">
-                            <ArrowLeft size={24}/>
-                        </div>
-                        <span className="text-[10px] md:text-[12px] uppercase tracking-[0.5em] text-white/30 group-hover:text-white whitespace-nowrap font-black">Back to List</span>
-                    </div>
+                {/* 修改重點：整合導覽與推薦 (與 image_7ed05f 同步) */}
+                <div className="pt-32 border-t border-white/10 flex flex-col items-center">
+                    <p className="text-[10px] uppercase tracking-[0.6em] text-white/20 mb-12 italic font-black">Next Exhibition</p>
                     
-                    <div className="h-16 w-px bg-white/10 hidden md:block" />
+                    <div className="w-full flex flex-row items-center justify-between gap-8 md:gap-16 px-4">
+                        {/* 左側：Back Button */}
+                        <div onClick={() => { setView({type:'home'}); window.scrollTo(0,0); }} className="flex items-center gap-6 group cursor-pointer text-white flex-shrink-0">
+                            <div className="p-4 md:p-6 rounded-full border border-white/20 group-hover:bg-white group-hover:text-black transition-all duration-700 shadow-2xl flex items-center justify-center">
+                                <ArrowLeft size={24}/>
+                            </div>
+                            <span className="text-[10px] md:text-[12px] uppercase tracking-[0.5em] text-white/30 group-hover:text-white whitespace-nowrap font-black hidden lg:inline">Back to List</span>
+                        </div>
 
-                    <div onClick={() => { setView({type:'home'}); setActiveMenu('All'); window.scrollTo(0,0); }} className="flex items-center gap-6 group cursor-pointer text-white">
-                        <span className="text-[10px] md:text-[12px] uppercase tracking-[0.5em] text-white/30 group-hover:text-white whitespace-nowrap font-black">Return Home</span>
-                        <div className="p-4 md:p-6 rounded-full border border-white/20 group-hover:bg-white group-hover:text-black transition-all duration-700 shadow-2xl flex items-center justify-center">
-                            <Home size={24}/>
+                        {/* 中間：推薦文章標題 */}
+                        {articles.filter(a => a.id !== view.id)[0] && (
+                           <motion.div 
+                              whileHover={{ scale: 1.05 }} 
+                              onClick={() => { setView({type:'article', id: articles.filter(a => a.id !== view.id)[0].id}); window.scrollTo(0,0); }} 
+                              className="flex flex-col items-center group cursor-pointer max-w-xl text-center"
+                           >
+                              <h4 className="text-3xl md:text-5xl font-serif text-white transition-all leading-tight tracking-tighter group-hover:italic group-hover:font-black">
+                                 {articles.filter(a => a.id !== view.id)[0].title}
+                              </h4>
+                              <ArrowRight size={24} className="mt-6 text-white/20 group-hover:text-white transition-colors" />
+                           </motion.div>
+                        )}
+
+                        {/* 右側：Home Button */}
+                        <div onClick={() => { setView({type:'home'}); setActiveMenu('All'); window.scrollTo(0,0); }} className="flex items-center gap-6 group cursor-pointer text-white flex-shrink-0">
+                            <span className="text-[10px] md:text-[12px] uppercase tracking-[0.5em] text-white/30 group-hover:text-white whitespace-nowrap font-black hidden lg:inline">Return Home</span>
+                            <div className="p-4 md:p-6 rounded-full border border-white/20 group-hover:bg-white group-hover:text-black transition-all duration-700 shadow-2xl flex items-center justify-center">
+                                <Home size={24}/>
+                            </div>
                         </div>
                     </div>
                 </div>
@@ -611,6 +615,12 @@ export default function App() {
 
         {view.type === 'cms' && isAdmin && (
           <CMSDashboard user={user} setView={setView} editData={editingArticle} showMessage={showMessage} menuList={dynamicMenuItems} socialLinks={socialLinks} baseMenuItems={baseMenuItems} />
+        )}
+      </AnimatePresence>
+
+      <AnimatePresence>
+        {showBackToTop && (
+          <motion.button initial={{ opacity: 0, scale: 0 }} animate={{ opacity: 1, scale: 1 }} exit={{ opacity: 0, scale: 0 }} onClick={() => window.scrollTo({ top: 0, behavior: 'smooth' })} className="fixed bottom-12 right-12 w-16 h-16 bg-white text-black rounded-full shadow-2xl flex items-center justify-center z-[140] hover:scale-110 transition-all cursor-pointer"><ChevronUp size={28} strokeWidth={4}/></motion.button>
         )}
       </AnimatePresence>
 
