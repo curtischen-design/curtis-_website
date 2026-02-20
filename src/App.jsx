@@ -167,12 +167,12 @@ const CMSDashboard = ({ user, setView, editData, showMessage, menuList, socialLi
             {customMenus.map(m => (
               <div key={m} className="flex items-center gap-2 bg-white/5 border border-white/10 px-4 py-2 rounded-full group">
                 <span className="text-xs uppercase tracking-widest text-white/60">{m}</span>
-                <button onClick={() => removeMenu(m)} className="text-white/20 hover:text-red-400 transition-colors"><XCircle size={14}/></button>
+                <button onClick={() => removeMenu(m)} className="text-white/20 hover:text-red-400 transition-colors cursor-pointer"><XCircle size={14}/></button>
               </div>
             ))}
           </div>
           <div className="flex gap-4">
-            <input className="flex-1 bg-black/30 border border-white/5 rounded-full px-6 py-3 text-xs outline-none focus:border-[#368C84]" value={newMenuInput} onChange={e => setNewMenuInput(e.target.value)} placeholder="新增選單項目..." />
+            <input className="flex-1 bg-black/30 border border-white/5 rounded-full px-6 py-3 text-xs outline-none focus:border-[#368C84]" value={newMenuInput} onChange={e => setNewMenuInput(e.target.value)} placeholder="新增預設選單項目..." />
             <button onClick={addMenu} className="px-8 py-3 bg-white text-black rounded-full font-black text-[10px] uppercase tracking-widest hover:scale-105 transition-all">Add</button>
           </div>
         </div>
@@ -250,7 +250,6 @@ export default function App() {
     const n = items.length;
     if (n <= 3) return [items];
     if (n === 4) return [items.slice(0, 2), items.slice(2)];
-    // 中段肥佈局 (如 7 項分配為 2/3/2)
     const middleCount = Math.min(Math.ceil(n * 0.45), 4);
     const sideCount = Math.floor((n - middleCount) / 2);
     return [ items.slice(0, sideCount), items.slice(sideCount, sideCount + middleCount), items.slice(sideCount + middleCount) ].filter(r => r.length > 0);
@@ -258,9 +257,7 @@ export default function App() {
 
   useEffect(() => {
     if (view.type !== 'article') return;
-    const unsubC = onSnapshot(collection(db, 'artifacts', appId, 'public', 'data', 'articles', view.id, 'comments'), (s) => {
-      setComments(s.docs.map(d => ({id: d.id, ...d.data()})).sort((a,b) => a.createdAt - b.createdAt));
-    });
+    const unsubC = onSnapshot(collection(db, 'artifacts', appId, 'public', 'data', 'articles', view.id, 'comments'), (s) => setComments(s.docs.map(d => ({id: d.id, ...d.data()})).sort((a,b) => a.createdAt - b.createdAt)));
     const unsubR = onSnapshot(collection(db, 'artifacts', appId, 'public', 'data', 'articles', view.id, 'reactions'), (s) => {
       const res = {};
       s.docs.forEach(d => {
@@ -369,16 +366,13 @@ export default function App() {
         </div>
       </div>
 
+      {/* 頂部導航 (Dashboard 僅限管理員顯示) */}
       <motion.nav animate={{ y: showHeader ? 0 : -100 }} className="fixed top-0 left-0 w-full p-8 flex justify-between items-center z-[110] mix-blend-difference font-black tracking-tighter uppercase italic">
         <div onClick={() => { setView({type:'home'}); setActiveMenu('All'); window.scrollTo(0,0); }} className="text-xl cursor-pointer hover:opacity-50 transition-all">Curtis Chen</div>
         
         <div className="flex items-center gap-6">
           <div className="hidden md:flex items-center gap-6 text-[9px] tracking-[0.3em] font-black">
-            {isAdmin ? (
-               <InteractiveLink onClick={() => { setEditingArticle(null); setView({type:'cms'}); }}>Dashboard</InteractiveLink>
-            ) : (
-               !user && <InteractiveLink onClick={() => signInWithPopup(auth, provider)}>Login</InteractiveLink>
-            )}
+            {isAdmin && <InteractiveLink onClick={() => { setEditingArticle(null); setView({type:'cms'}); }}>Dashboard</InteractiveLink>}
             {user && <InteractiveLink onClick={() => signOut(auth)} className="text-red-400/60 hover:text-red-400">Logout</InteractiveLink>}
           </div>
           <div className="h-4 w-px bg-white/20 hidden md:block" />
@@ -387,7 +381,6 @@ export default function App() {
         </div>
       </motion.nav>
 
-      {/* 搜尋視窗 */}
       <AnimatePresence>
         {isSearchOpen && (
           <motion.div initial={{ opacity: 0, y: -20 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: -20 }} className="fixed top-24 left-0 w-full px-8 md:px-24 z-[105]">
@@ -396,11 +389,12 @@ export default function App() {
         )}
       </AnimatePresence>
 
-      {/* 全螢幕選單 */}
+      {/* 全螢幕選單 (新增 SEARCH / DASHBOARD / LOGIN 功能) */}
       <AnimatePresence>
         {isMenuOpen && (
           <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} transition={transition} className="fixed inset-0 bg-[#368C84] z-[120] flex flex-col p-12 overflow-hidden select-none">
             <div className="flex justify-end"><button onClick={() => setIsMenuOpen(false)} className="hover:rotate-90 transition-all duration-500 cursor-pointer"><X size={48} strokeWidth={1}/></button></div>
+            
             <div className="flex-grow flex flex-col items-center justify-around py-24 max-h-[85vh]">
               <div className="flex flex-col items-center gap-12 md:gap-20 w-full text-white">
                 {menuRows.map((row, rid) => (
@@ -413,10 +407,20 @@ export default function App() {
                   </div>
                 ))}
               </div>
-              <InteractiveLink onClick={() => { setView({type:'bookmarks'}); setIsMenuOpen(false); window.scrollTo(0,0); }} className="mt-12 text-[11px] uppercase tracking-[0.5em] flex items-center gap-4 border border-white/10 px-12 py-5 rounded-full hover:bg-white hover:text-black transition-all font-black shadow-2xl">
-                <Bookmark size={14} fill={userBookmarks.length > 0 ? "currentColor" : "none"} /> MY ARCHIVE ({userBookmarks.length})
-              </InteractiveLink>
+              
+              <div className="flex flex-col items-center gap-8 mt-12 w-full">
+                <div className="flex flex-wrap justify-center gap-8 md:gap-12">
+                   <InteractiveLink onClick={() => { setIsSearchOpen(true); setIsMenuOpen(false); }} className="text-xs tracking-[0.2em]">SEARCH</InteractiveLink>
+                   {isAdmin && <InteractiveLink onClick={() => { setEditingArticle(null); setView({type:'cms'}); setIsMenuOpen(false); }} className="text-xs tracking-[0.2em]">DASHBOARD</InteractiveLink>}
+                   {!isAdmin && !user && <InteractiveLink onClick={() => { signInWithPopup(auth, provider).then(() => setIsMenuOpen(false)); }} className="text-xs tracking-[0.2em]">LOGIN</InteractiveLink>}
+                </div>
+
+                <InteractiveLink onClick={() => { setView({type:'bookmarks'}); setIsMenuOpen(false); window.scrollTo(0,0); }} className="text-[11px] uppercase tracking-[0.5em] flex items-center gap-4 border border-white/10 px-12 py-5 rounded-full hover:bg-white hover:text-black transition-all font-black shadow-2xl">
+                  <Bookmark size={14} fill={userBookmarks.length > 0 ? "currentColor" : "none"} /> MY ARCHIVE ({userBookmarks.length})
+                </InteractiveLink>
+              </div>
             </div>
+
             <div className="flex flex-col md:flex-row justify-between items-end gap-12 border-t border-white/10 pt-12 pb-4 mt-auto text-white/30">
               <SocialIconsList />
               <div className="flex flex-col items-end gap-6 text-[10px] uppercase tracking-[0.4em] font-black">
@@ -438,7 +442,7 @@ export default function App() {
       <AnimatePresence mode="wait">
         {/* 首頁 */}
         {view.type === 'home' && (
-          <motion.main key="home" initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} className="pt-40 px-8 md:px-24 pb-40">
+          <motion.main key="home" initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} className="pt-40 px-8 md:px-24 pb-40 text-white">
             <div className="flex flex-row items-start gap-12 mb-32">
               <motion.div initial={{ x: -40, opacity: 0 }} animate={{ x: 0, opacity: 1 }} transition={transition} className="flex gap-4">
                 <div className="text-7xl md:text-[9.5vw] font-black leading-none uppercase tracking-tighter font-serif vertical-text border-r border-white/10 pr-6">博物館</div>
@@ -453,7 +457,7 @@ export default function App() {
 
             <div className="space-y-4 mb-24 sticky top-0 bg-[#368C84]/90 backdrop-blur-lg z-50 py-4 border-b border-white/5">
               <div className="flex items-center gap-4 overflow-x-auto scrollbar-hide font-black">
-                <span className="text-[9px] uppercase tracking-widest text-white/20 flex-shrink-0 flex items-center gap-2"><Filter size={10}/> Section</span>
+                <span className="text-[9px] uppercase tracking-widest text-white/20 flex-shrink-0 flex items-center gap-2 font-black"><Filter size={10}/> Section</span>
                 {['All', ...dynamicMenuItems].map(m => (
                   <button key={m} onClick={() => { setActiveMenu(m); setActivePath([]); }} className={`px-6 py-2 rounded-full text-[10px] transition-all border whitespace-nowrap cursor-pointer relative group ${activeMenu === m ? 'bg-white text-black border-white shadow-xl' : 'border-white/10 text-white/40 hover:border-white/60'}`}>
                     {m}
@@ -487,14 +491,14 @@ export default function App() {
         {/* 文章內容視圖 */}
         {view.type === 'article' && (
           <motion.article key="article" initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} transition={transition} className="pt-40 px-8 md:px-24 max-w-5xl mx-auto pb-60 text-white">
-            <div className="flex justify-between items-center mb-16 border-b border-white/5 pb-8">
+            <div className="flex justify-between items-center mb-16 border-b border-white/5 pb-8 text-white">
               <div className="flex items-center gap-4 text-[10px] uppercase tracking-widest text-white/20 font-serif italic">
                 <InteractiveLink onClick={() => { setView({type:'home'}); setActiveMenu(articles.find(a => a.id === view.id).mainMenu); }}>{articles.find(a => a.id === view.id).mainMenu}</InteractiveLink>
                 {articles.find(a => a.id === view.id)?.subPath?.map((p, i) => (<React.Fragment key={i}><ChevronRight size={10} /><span className="text-white/40">{p}</span></React.Fragment>))}
               </div>
               <div className="flex items-center gap-6">
                 <button onClick={() => toggleBookmark(view.id)} className={`p-3 rounded-full border transition-all cursor-pointer ${userBookmarks.includes(view.id) ? 'bg-white text-[#368C84] shadow-xl' : 'border-white/10 hover:border-white/40'}`}><Bookmark size={16} fill={userBookmarks.includes(view.id) ? "currentColor" : "none"} /></button>
-                {isAdmin && <button onClick={() => { setEditingArticle(articles.find(a => a.id === view.id)); setView({type:'cms'}); }} className="flex items-center gap-3 text-[10px] uppercase tracking-widest text-white/40 border border-white/10 px-6 py-2 rounded-full cursor-pointer hover:bg-white hover:text-black transition-all shadow-xl font-black">EDIT ARCHIVE</button>}
+                {isAdmin && <InteractiveLink onClick={() => { setEditingArticle(articles.find(a => a.id === view.id)); setView({type:'cms'}); }} className="text-[10px] uppercase tracking-widest text-white/40 border border-white/10 px-6 py-2 rounded-full font-black shadow-xl px-4 py-1.5">EDIT ARCHIVE</InteractiveLink>}
               </div>
             </div>
             
@@ -517,16 +521,16 @@ export default function App() {
                   </div>
                 </div>
 
-                {/* 留言區 (已修復渲染) */}
+                {/* 留言區 */}
                 <div className="max-w-3xl mx-auto mb-60 space-y-16">
-                  <h3 className="text-2xl font-serif italic flex items-center gap-4">檔案評論區 <span className="text-xs font-mono opacity-20 tracking-tighter">({comments.length})</span></h3>
+                  <h3 className="text-2xl font-serif italic flex items-center gap-4 text-white">檔案評論區 <span className="text-xs font-mono opacity-20 tracking-tighter">({comments.length})</span></h3>
                   <div className="space-y-12">
                     {comments.map(c => (
                       <div key={c.id} className="group flex gap-6 items-start">
                         <div className="w-12 h-12 rounded-full bg-white/5 border border-white/10 flex-shrink-0 overflow-hidden shadow-2xl">
                           {c.userPhoto ? <img src={c.userPhoto} alt="" className="w-full h-full object-cover" /> : <div className="w-full h-full flex items-center justify-center text-white/10 italic font-black">?</div>}
                         </div>
-                        <div className="flex-1 space-y-2">
+                        <div className="flex-1 space-y-2 text-white">
                           <div className="flex items-center justify-between">
                             <div className="flex items-center gap-3">
                               <span className="text-xs font-black text-white/80">{c.userName}</span>
@@ -553,7 +557,7 @@ export default function App() {
                   </div>
                 </div>
 
-                {/* 底部導覽區域：與 image_7ed05f.png 完美同步 */}
+                {/* 推薦閱讀 */}
                 <div className="border-t border-white/10 pt-32 mb-40 text-center flex flex-col items-center">
                    <p className="text-[10px] uppercase tracking-[0.6em] text-white/20 mb-12 italic font-black">Next Exhibition</p>
                    {articles.filter(a => a.id !== view.id)[0] && (
@@ -564,18 +568,18 @@ export default function App() {
                    )}
                 </div>
 
-                {/* 強制橫向一行的 Back & Home (如 image_7ed05f.png) */}
+                {/* 置中導覽列：與 image_7ed05f.png 完美同步 */}
                 <div className="flex flex-row justify-center items-center gap-12 md:gap-24 pt-20 border-t border-white/10">
-                    <div onClick={() => { setView({type:'home'}); window.scrollTo(0,0); }} className="flex items-center gap-6 group cursor-pointer">
+                    <div onClick={() => { setView({type:'home'}); window.scrollTo(0,0); }} className="flex items-center gap-6 group cursor-pointer text-white">
                         <div className="p-4 md:p-6 rounded-full border border-white/20 group-hover:bg-white group-hover:text-black transition-all duration-700 shadow-2xl flex items-center justify-center">
                             <ArrowLeft size={24}/>
                         </div>
                         <span className="text-[10px] md:text-[12px] uppercase tracking-[0.5em] text-white/30 group-hover:text-white whitespace-nowrap font-black">Back to List</span>
                     </div>
                     
-                    <div className="h-16 w-px bg-white/10" />
+                    <div className="h-16 w-px bg-white/10 hidden md:block" />
 
-                    <div onClick={() => { setView({type:'home'}); setActiveMenu('All'); window.scrollTo(0,0); }} className="flex items-center gap-6 group cursor-pointer">
+                    <div onClick={() => { setView({type:'home'}); setActiveMenu('All'); window.scrollTo(0,0); }} className="flex items-center gap-6 group cursor-pointer text-white">
                         <span className="text-[10px] md:text-[12px] uppercase tracking-[0.5em] text-white/30 group-hover:text-white whitespace-nowrap font-black">Return Home</span>
                         <div className="p-4 md:p-6 rounded-full border border-white/20 group-hover:bg-white group-hover:text-black transition-all duration-700 shadow-2xl flex items-center justify-center">
                             <Home size={24}/>
@@ -589,9 +593,9 @@ export default function App() {
 
         {/* 我的收藏 */}
         {view.type === 'bookmarks' && (
-          <motion.main key="bookmarks" initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} className="pt-40 px-8 md:px-24 pb-40 min-h-screen">
+          <motion.main key="bookmarks" initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} className="pt-40 px-8 md:px-24 pb-40 min-h-screen text-white">
              <div className="mb-24 border-b border-white/10 pb-12 text-white">
-               <InteractiveLink onClick={() => setView({type:'home'})} className="flex items-center gap-2 text-[10px] uppercase tracking-widest text-white/40 mb-8">BACK TO HALL</InteractiveLink>
+               <InteractiveLink onClick={() => setView({type:'home'})} className="flex items-center gap-2 text-[10px] uppercase tracking-widest text-white/40 mb-8 font-black">BACK TO HALL</InteractiveLink>
                <h1 className="text-6xl md:text-8xl font-serif italic font-light leading-none">My Private Gallery.</h1>
              </div>
              <div className="grid grid-cols-1">
