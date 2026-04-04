@@ -9,7 +9,7 @@ import {
 
 // Firebase 核心模組
 import { initializeApp, getApps, getApp } from 'firebase/app';
-import { getAuth, signInWithPopup, GoogleAuthProvider, onAuthStateChanged, signOut, signInAnonymously, signInWithCustomToken } from 'firebase/auth';
+import { getAuth, signInWithPopup, GoogleAuthProvider, onAuthStateChanged, signOut, signInAnonymously } from 'firebase/auth';
 import { getFirestore, collection, addDoc, onSnapshot, Timestamp, doc, updateDoc, setDoc, deleteDoc, query, increment } from 'firebase/firestore';
 
 /**
@@ -35,28 +35,27 @@ const appId = 'my-portfolio-v1';
 const transition = { duration: 0.8, ease: [0.22, 1, 0.36, 1] };
 
 /**
- * Markdown 渲染器：完美支援 Obsidian Callouts
+ * Markdown 渲染器：支援 Obsidian Callouts (修正版)
  */
 const renderMarkdown = (text) => {
   if (!text) return '';
   let processed = text;
 
-  // 1. Obsidian Callout 渲染 (優化正則表達式，處理 > 符號與多行)
   const calloutRegex = /^> \[!(quote|info)\](.*?)\n((?:^>.*\n?)+)/gim;
   processed = processed.replace(calloutRegex, (match, type, title, content) => {
     const innerContent = content.replace(/^>\s?/gm, '').trim();
     if (type.toLowerCase() === 'quote') {
-      return `<div class="my-10 p-8 bg-white/5 border-l-4 border-white/40 rounded-r-3xl italic font-serif text-white/90 shadow-inner relative group">
+      return `<div class="my-10 p-8 bg-white/5 border-l-4 border-white/40 rounded-r-3xl italic font-serif text-white/90 shadow-inner relative group text-white">
                 <span class="absolute top-4 right-6 opacity-10 text-white"><svg width="40" height="40" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 21c3 0 7-1 7-8V5c0-1.25-.75-2-2-2H4c-1.25 0-2 .75-2 2v3c0 1.25.75 2 2 2h3c0 4-2 6-3 6m11 5c3 0 7-1 7-8V5c0-1.25-.75-2-2-2h-4c-1.25 0-2 .75-2 2v3c0 1.25.75 2 2 2h3c0 4-2 6-3 6" stroke-linecap="round" stroke-linejoin="round"/></svg></span>
                 <div class="text-xl md:text-2xl leading-relaxed text-white">“${innerContent}”</div>
               </div>`;
     } else {
       return `<div class="my-10 p-8 bg-[#368C84]/20 border-l-4 border-[#368C84] rounded-r-3xl shadow-xl text-white">
-                <div class="flex items-center gap-3 mb-4 opacity-50 font-black text-white">
+                <div class="flex items-center gap-3 mb-4 opacity-50 font-black text-white text-white">
                   <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="white" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><line x1="12" y1="16" x2="12" y2="12"/><line x1="12" y1="8" x2="12.01" y2="8"/></svg>
-                  <span class="uppercase tracking-[0.4em] text-[10px] text-white font-black">Information Archive</span>
+                  <span class="uppercase tracking-[0.4em] text-[10px] text-white">Information Notice</span>
                 </div>
-                <div class="text-white/80 leading-relaxed text-white">${innerContent}</div>
+                <div class="text-white/80 leading-relaxed text-white text-white">${innerContent}</div>
               </div>`;
     }
   });
@@ -68,7 +67,7 @@ const renderMarkdown = (text) => {
     .replace(/^### (.*$)/gim, '<h3 class="text-2xl font-bold mt-10 mb-5 font-serif text-white">$1</h3>')
     .replace(/^## (.*$)/gim, '<h2 class="text-3xl font-bold mt-12 mb-6 font-serif text-white">$1</h2>')
     .replace(/^# (.*$)/gim, '<h1 class="text-4xl md:text-6xl font-bold mt-12 mb-8 font-serif text-white leading-tight">$1</h1>')
-    .replace(/\*\*(.*)\*\*/gim, '<strong class="text-white font-bold">$1</strong>')
+    .replace(/\*\*(.*)\*\*/gim, '<strong class="text-white font-bold text-white">$1</strong>')
     .replace(/\n/g, '<br/>');
 };
 
@@ -80,7 +79,7 @@ const InteractiveLink = ({ children, onClick, className = "" }) => (
 );
 
 /**
- * 🛠️ CMS 管理員面板
+ * 🛠️ CMS 管理員面板 (修復同步競爭問題)
  */
 const CMSDashboard = ({ user, setView, editData, showMessage, menuList, articles, featuredMenus, menuQuotes, siteSettings }) => {
   const [title, setTitle] = useState(editData?.title || '');
@@ -89,20 +88,14 @@ const CMSDashboard = ({ user, setView, editData, showMessage, menuList, articles
   const [content, setContent] = useState(editData?.content || '');
   const [isPinned, setIsPinned] = useState(editData?.isPinned || false);
   
-  const formatForInput = (date) => {
-    const d = new Date(date.getTime() - date.getTimezoneOffset() * 60000);
-    return d.toISOString().slice(0, 16);
-  };
-  
   const [pubDate, setPubDate] = useState(
-    editData?.publishDate ? formatForInput(editData.publishDate.toDate()) : formatForInput(new Date())
+    editData?.publishDate ? new Date(editData.publishDate.toDate().getTime() - 60000 * new Date().getTimezoneOffset()).toISOString().slice(0,16) : new Date(Date.now() - 60000 * new Date().getTimezoneOffset()).toISOString().slice(0,16)
   );
 
   const [loading, setLoading] = useState(false);
-  const [tempQuotes, setTempQuotes] = useState(menuQuotes || {});
-  const [tempSiteSettings, setTempSiteSettings] = useState(siteSettings || {});
+  const [tempQuotes, setTempQuotes] = useState({});
+  const [tempSiteSettings, setTempSiteSettings] = useState({});
 
-  // 深度監聽以解決同步失效
   useEffect(() => { if (menuQuotes) setTempQuotes(menuQuotes); }, [menuQuotes]);
   useEffect(() => { if (siteSettings) setTempSiteSettings(siteSettings); }, [siteSettings]);
 
@@ -143,11 +136,8 @@ const CMSDashboard = ({ user, setView, editData, showMessage, menuList, articles
   const saveSiteSettings = async () => {
     try {
       await setDoc(doc(db, 'artifacts', appId, 'public', 'data', 'settings', 'siteBranding'), tempSiteSettings);
-      showMessage('全站品牌文案已更新');
-    } catch (e) { 
-      console.error(e);
-      showMessage('儲存失敗，請檢查資料庫規則'); 
-    }
+      showMessage('全站文案已更新');
+    } catch (e) { showMessage('儲存失敗'); }
   };
 
   const saveQuote = async (name) => {
@@ -158,27 +148,17 @@ const CMSDashboard = ({ user, setView, editData, showMessage, menuList, articles
     } catch (e) { showMessage('儲存失敗'); }
   };
 
-  const toggleFMenu = async (name) => {
-    try {
-      const current = featuredMenus || [];
-      const updated = current.includes(name) ? current.filter(m => m !== name) : [...current, name];
-      await setDoc(doc(db, 'artifacts', appId, 'public', 'data', 'settings', 'featuredMenuSettings'), { items: updated });
-      showMessage('精選狀態已同步');
-    } catch (e) { showMessage('儲存失敗'); }
-  };
-
   return (
-    <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} className="pt-32 px-8 md:px-24 max-w-5xl mx-auto pb-60 text-white font-sans text-white">
+    <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} className="pt-32 px-8 md:px-24 max-w-4xl mx-auto pb-60 text-white font-sans text-white text-white">
       <div className="flex justify-between items-end mb-16 border-b border-white/10 pb-8 text-white">
         <h2 className="text-4xl font-serif italic text-white text-white">{editData ? '編輯檔案.' : '新增檔案.'}</h2>
-        <InteractiveLink onClick={() => setView({ type: 'home' })} className="text-white text-white">Back</InteractiveLink>
+        <InteractiveLink onClick={() => setView({ type: 'home' })} className="text-white text-white text-white">Back</InteractiveLink>
       </div>
 
       <div className="space-y-16 text-white text-white">
-        {/* 文章編輯 */}
         <div className="grid grid-cols-1 md:grid-cols-2 gap-12 text-white">
-          <div className="space-y-4 text-white">
-            <label className="text-[10px] uppercase tracking-widest text-white/40 font-bold ml-1 text-white">1. 選單分類</label>
+          <div className="space-y-4">
+            <label className="text-[10px] uppercase tracking-widest text-white/40 font-bold ml-1 text-white text-white">1. 分類項目</label>
             <input required className="w-full bg-transparent border-b border-white/10 py-3 text-2xl font-serif outline-none focus:border-[#368C84] text-white" value={mainMenu} onChange={(e) => setMainMenu(e.target.value)} />
             <div className="flex flex-wrap gap-2 mt-4 text-white">
               {menuList.map(m => (
@@ -186,33 +166,33 @@ const CMSDashboard = ({ user, setView, editData, showMessage, menuList, articles
               ))}
             </div>
           </div>
-          <div className="space-y-4">
-            <label className="text-[10px] uppercase tracking-widest text-white/40 font-bold ml-1 flex items-center gap-2 text-white"><Calendar size={12}/> 2. 標記時間</label>
-            <input type="datetime-local" className="w-full bg-white/5 border border-white/10 rounded-full px-6 py-3 text-sm outline-none focus:border-[#368C84] transition-all text-white" value={pubDate} onChange={e => setPubDate(e.target.value)} />
+          <div className="space-y-4 text-white text-white">
+            <label className="text-[10px] uppercase tracking-widest text-white/40 font-bold ml-1 flex items-center gap-2 text-white"><Calendar size={12}/> 2. 標記日期</label>
+            <input type="datetime-local" className="w-full bg-white/5 border border-white/10 rounded-full px-6 py-3 text-sm outline-none focus:border-[#368C84] transition-all text-white text-white" value={pubDate} onChange={e => setPubDate(e.target.value)} />
           </div>
         </div>
 
         <div className="space-y-4">
           <label className="text-[10px] uppercase tracking-widest text-white/40 font-bold ml-1 text-white">3. 標題與訂選 (Star)</label>
-          <div className="flex gap-4 items-center">
-            <input required className="flex-1 bg-transparent border-b border-white/10 py-4 text-3xl font-serif outline-none focus:border-[#368C84] text-white" value={title} onChange={e => setTitle(e.target.value)} placeholder="Title..." />
+          <div className="flex gap-4 items-center text-white">
+            <input required className="flex-1 bg-transparent border-b border-white/10 py-4 text-3xl font-serif outline-none focus:border-[#368C84] text-white text-white" value={title} onChange={e => setTitle(e.target.value)} />
             <button onClick={() => setIsPinned(!isPinned)} className={`p-4 rounded-full border transition-all ${isPinned ? 'bg-white text-[#368C84] border-white' : 'border-white/10 text-white/20'}`}>
               <Star size={24} fill={isPinned ? "currentColor" : "none"} />
             </button>
           </div>
         </div>
 
-        <div className="space-y-4 text-white">
-          <label className="text-[10px] uppercase tracking-widest text-white/40 font-bold ml-1 text-white">4. 子路徑 (Root / Subpath)</label>
-          <input className="w-full bg-transparent border-b border-white/10 py-2 text-lg outline-none focus:border-white text-white" value={pathInput} onChange={e => setPathInput(e.target.value)} placeholder="大一 / 生活" />
+        <div className="space-y-4 text-white text-white text-white">
+          <label className="text-[10px] uppercase tracking-widest text-white/40 font-bold ml-1 text-white text-white">4. 子路徑 (Root / Subpath)</label>
+          <input className="w-full bg-transparent border-b border-white/10 py-2 text-lg outline-none focus:border-white text-white text-white" value={pathInput} onChange={e => setPathInput(e.target.value)} placeholder="大一 / 生活" />
         </div>
 
         <div className="space-y-4 text-white">
-          <label className="text-[10px] uppercase tracking-widest text-white/40 font-bold ml-1 text-white">5. 內容 (支援 &gt; [!quote] 渲染)</label>
-          <textarea required rows={12} className="w-full bg-black/10 border border-white/5 p-8 rounded-[40px] text-white/80 font-mono text-sm leading-relaxed outline-none focus:border-[#368C84]/50 transition-all text-white" value={content} onChange={e => setContent(e.target.value)} />
+          <label className="text-[10px] uppercase tracking-widest text-white/40 font-bold ml-1 text-white text-white">5. 內容 (支援 Obsidian Callouts)</label>
+          <textarea required rows={12} className="w-full bg-black/10 border border-white/5 p-8 rounded-[40px] text-white/80 font-mono text-sm leading-relaxed outline-none focus:border-[#368C84]/50 transition-all text-white text-white" value={content} onChange={e => setContent(e.target.value)} />
         </div>
 
-        <div className="flex flex-col md:flex-row gap-6">
+        <div className="flex flex-col md:flex-row gap-6 text-white text-white text-white">
           <button disabled={loading} onClick={() => handlePublish(false)} className="flex-1 bg-white text-[#368C84] py-8 rounded-full font-bold uppercase tracking-[0.5em] hover:scale-[0.98] transition-all shadow-2xl flex items-center justify-center gap-3">
             <Globe size={18}/> 正式發布
           </button>
@@ -223,20 +203,20 @@ const CMSDashboard = ({ user, setView, editData, showMessage, menuList, articles
       </div>
 
       {/* 草稿管理 */}
-      <div className="mt-40 space-y-12 border-t border-white/10 pt-40">
+      <div className="mt-40 space-y-12 border-t border-white/10 pt-40 text-white text-white">
         <h3 className="text-[10px] uppercase tracking-[0.6em] text-white/30 flex items-center gap-3 text-white text-white"><FileText size={14}/> 草稿檔案庫</h3>
         {Object.keys(groupedDrafts).length === 0 ? (
-          <p className="text-white/10 font-serif italic text-xl text-white">目前館藏無未完成草稿。</p>
+          <p className="text-white/10 font-serif italic text-xl text-white">目前沒有未完成的草稿。</p>
         ) : (
           Object.entries(groupedDrafts).map(([menu, subGroups]) => (
-            <div key={menu} className="space-y-6 text-white">
-              <h4 className="text-xs uppercase tracking-[0.4em] text-[#368C84] font-black border-l-2 border-[#368C84] pl-4 text-[#368C84]">{menu}</h4>
+            <div key={menu} className="space-y-6 text-white text-white">
+              <h4 className="text-xs uppercase tracking-[0.4em] text-[#368C84] font-black border-l-2 border-[#368C84] pl-4 text-white text-white">{menu}</h4>
               {Object.entries(subGroups).map(([sub, arts]) => (
                 <div key={sub} className="ml-6 space-y-2 text-white">
-                  <span className="text-[10px] text-white/20 uppercase tracking-widest italic text-white">{sub}</span>
+                  <span className="text-[10px] text-white/20 uppercase tracking-widest italic text-white text-white">{sub}</span>
                   <div className="flex flex-col text-white">
                     {arts.map(art => (
-                      <button key={art.id} onClick={() => { setEditingArticle(art); window.scrollTo(0,0); }} className="text-left py-2 border-b border-white/5 hover:text-[#368C84] transition-colors group flex items-center justify-between text-white text-white text-white">
+                      <button key={art.id} onClick={() => { setEditingArticle(art); window.scrollTo(0,0); }} className="text-left py-2 border-b border-white/5 hover:text-[#368C84] transition-colors group flex items-center justify-between text-white text-white">
                          <span className="font-serif text-lg text-white">{art.title}</span>
                          <Edit3 size={14} className="opacity-0 group-hover:opacity-40 transition-opacity text-white text-white" />
                       </button>
@@ -249,47 +229,42 @@ const CMSDashboard = ({ user, setView, editData, showMessage, menuList, articles
         )}
       </div>
 
-      {/* 全站文案編輯區 (修復同步) */}
+      {/* 全站文案與品牌設定 */}
       <div className="mt-40 space-y-12 border-t border-white/10 pt-40 text-white">
         <div className="p-10 bg-white/5 rounded-[60px] border border-white/5 space-y-10 text-white text-white">
-          <div className="flex justify-between items-center text-white text-white">
-            <h3 className="text-[10px] uppercase tracking-[0.4em] text-white/30 flex items-center gap-3 text-white text-white"><Type size={14}/> 全站標題與品牌設定</h3>
-            <button onClick={saveSiteSettings} className="bg-white text-[#368C84] px-6 py-2 rounded-full font-black text-[10px] uppercase tracking-widest hover:scale-105 transition-all text-[#368C84] text-[#368C84]">Save Global Texts</button>
+          <div className="flex justify-between items-center text-white text-white text-white">
+            <h3 className="text-[10px] uppercase tracking-[0.4em] text-white/30 flex items-center gap-3 text-white text-white text-white"><Type size={14}/> 全站品牌文案自定義</h3>
+            <button onClick={saveSiteSettings} className="bg-white text-[#368C84] px-6 py-2 rounded-full font-black text-[10px] uppercase tracking-widest hover:scale-105 transition-all text-[#368C84]">Save Global Texts</button>
           </div>
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-12 text-white">
-             <div className="space-y-4 text-white">
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-12 text-white text-white">
+             <div className="space-y-4 text-white text-white">
                 <label className="text-[9px] uppercase tracking-widest text-white/20 ml-2 font-bold text-white text-white">Logo 名稱</label>
                 <input className="w-full bg-black/30 border border-white/5 rounded-full px-6 py-3 text-sm outline-none focus:border-[#368C84] text-white text-white" value={tempSiteSettings.logoName || ''} onChange={e => setTempSiteSettings({...tempSiteSettings, logoName: e.target.value})} />
              </div>
              <div className="space-y-4 text-white">
-                <label className="text-[9px] uppercase tracking-widest text-white/20 ml-2 font-bold text-white text-white">直式標題</label>
+                <label className="text-[9px] uppercase tracking-widest text-white/20 ml-2 font-bold text-white text-white">首頁直式大標題</label>
                 <div className="flex gap-4">
-                   <input className="w-1/2 bg-black/30 border border-white/5 rounded-full px-6 py-3 text-sm outline-none focus:border-[#368C84] text-white" value={tempSiteSettings.title1 || ''} onChange={e => setTempSiteSettings({...tempSiteSettings, title1: e.target.value})} />
-                   <input className="w-1/2 bg-black/30 border border-white/5 rounded-full px-6 py-3 text-sm outline-none focus:border-[#368C84] text-white" value={tempSiteSettings.title2 || ''} onChange={e => setTempSiteSettings({...tempSiteSettings, title2: e.target.value})} />
+                   <input className="w-1/2 bg-black/30 border border-white/5 rounded-full px-6 py-3 text-sm outline-none focus:border-[#368C84] text-white text-white" value={tempSiteSettings.title1 || ''} onChange={e => setTempSiteSettings({...tempSiteSettings, title1: e.target.value})} />
+                   <input className="w-1/2 bg-black/30 border border-white/5 rounded-full px-6 py-3 text-sm outline-none focus:border-[#368C84] text-white text-white" value={tempSiteSettings.title2 || ''} onChange={e => setTempSiteSettings({...tempSiteSettings, title2: e.target.value})} />
                 </div>
              </div>
           </div>
-          <div className="space-y-4 text-white text-white">
-            <label className="text-[9px] uppercase tracking-widest text-white/20 ml-2 font-bold text-white text-white">首頁描述文字</label>
-            <input className="w-full bg-black/30 border border-white/5 rounded-full px-6 py-3 text-sm outline-none focus:border-[#368C84] mb-4 text-white" value={tempSiteSettings.heroSubtitle || ''} onChange={e => setTempSiteSettings({...tempSiteSettings, heroSubtitle: e.target.value})} />
-            <textarea rows={3} className="w-full bg-black/30 border border-white/5 rounded-[30px] p-6 text-sm outline-none focus:border-[#368C84] text-white" value={tempSiteSettings.heroDescription || ''} onChange={e => setTempSiteSettings({...tempSiteSettings, heroDescription: e.target.value})} />
+          <div className="space-y-4 text-white text-white text-white">
+            <label className="text-[9px] uppercase tracking-widest text-white/20 ml-2 font-bold text-white text-white">首頁描述大標題與內容</label>
+            <input className="w-full bg-black/30 border border-white/5 rounded-full px-6 py-3 text-sm outline-none focus:border-[#368C84] mb-4 text-white text-white" value={tempSiteSettings.heroSubtitle || ''} onChange={e => setTempSiteSettings({...tempSiteSettings, heroSubtitle: e.target.value})} />
+            <textarea rows={3} className="w-full bg-black/30 border border-white/5 rounded-[30px] p-6 text-sm outline-none focus:border-[#368C84] text-white text-white text-white" value={tempSiteSettings.heroDescription || ''} onChange={e => setTempSiteSettings({...tempSiteSettings, heroDescription: e.target.value})} />
           </div>
         </div>
 
-        <div className="p-10 bg-white/5 rounded-[60px] border border-white/5 space-y-10 text-white text-white">
-          <h3 className="text-[10px] uppercase tracking-[0.4em] text-white/30 flex items-center gap-3 text-white text-white text-white"><Star size={14}/> 各展廳名言與精選設定</h3>
-          <div className="grid grid-cols-1 gap-8 text-white">
+        <div className="p-10 bg-white/5 rounded-[60px] border border-white/5 space-y-10 text-white text-white text-white">
+          <h3 className="text-[10px] uppercase tracking-[0.4em] text-white/30 flex items-center gap-3 text-white text-white text-white text-white"><Star size={14}/> 各展廳專屬標語設定</h3>
+          <div className="grid grid-cols-1 gap-8 text-white text-white">
             {menuList.map(name => (
-              <div key={name} className="flex flex-col md:flex-row md:items-center gap-6 bg-white/[0.02] p-8 rounded-[40px] border border-white/5 text-white">
-                <button onClick={() => toggleFMenu(name)}
-                  className={`px-6 py-2 rounded-full text-[10px] tracking-widest border transition-all ${featuredMenus.includes(name) ? 'bg-white text-black border-white font-black' : 'border-white/10 text-white/30 hover:border-white/50'}`}
-                >
-                  {featuredMenus.includes(name) ? '已精選' : '設為精選'}
-                </button>
+              <div key={name} className="flex flex-col md:flex-row md:items-center gap-6 bg-white/[0.02] p-8 rounded-[40px] border border-white/5 text-white text-white">
                 <div className="flex-1 text-white">
-                   <p className="text-[9px] uppercase tracking-widest text-white/40 mb-2 text-white">{name} 展廳標語</p>
-                   <div className="flex gap-4 items-center">
-                     <input className="flex-1 bg-transparent border-b border-white/10 py-2 outline-none text-white italic text-white" 
+                   <p className="text-[9px] uppercase tracking-widest text-white/40 mb-2 text-white text-white">{name} 展廳標語</p>
+                   <div className="flex gap-4 items-center text-white text-white">
+                     <input className="flex-1 bg-transparent border-b border-white/10 py-2 outline-none text-white italic text-white text-white" 
                       value={tempQuotes[name] || ''} 
                       onChange={(e) => setTempQuotes({...tempQuotes, [name]: e.target.value})} />
                      <button onClick={() => saveQuote(name)} className="p-3 hover:text-[#368C84] transition-colors text-white text-white"><Save size={18}/></button>
@@ -345,7 +320,7 @@ export default function App() {
   const isAdmin = user && user.email === ADMIN_EMAIL;
   const showMessage = (text) => { setMessage(text); setTimeout(() => setMessage(null), 3000); };
 
-  // 初始化 Auth 與 數據監聽
+  // 初始化與數據監聽
   useEffect(() => { 
     onAuthStateChanged(auth, (u) => {
       setUser(u);
@@ -371,7 +346,7 @@ export default function App() {
     const items = dynamicMenuItems;
     const n = items.length;
     if (n <= 3) return [items];
-    const middleCount = Math.min(Math.ceil(n * 0.45), 4);
+    const middleCount = Math.min(Math.ceil(n * 0.4), 4); // 稍微縮小中間欄位
     const sideCount = Math.floor((n - middleCount) / 2);
     return [ items.slice(0, sideCount), items.slice(sideCount, sideCount + middleCount), items.slice(sideCount + middleCount) ].filter(r => r.length > 0);
   }, [dynamicMenuItems]);
@@ -448,7 +423,7 @@ export default function App() {
     try {
       const updated = featuredMenus.includes(name) ? featuredMenus.filter(m => m !== name) : [...featuredMenus, name];
       await setDoc(doc(db, 'artifacts', appId, 'public', 'data', 'settings', 'featuredMenuSettings'), { items: updated });
-      showMessage('精選狀態已同步');
+      showMessage('精選名單已同步');
     } catch (e) { showMessage('儲存失敗'); }
   };
 
@@ -457,7 +432,7 @@ export default function App() {
       const updated = { ...menuQuotes, [activeMenu]: val };
       await setDoc(doc(db, 'artifacts', appId, 'public', 'data', 'settings', 'menuQuotes'), updated);
       setIsEditingQuote(false);
-      showMessage('展廳標語同步成功');
+      showMessage('展廳名言已同步');
     } catch (e) { showMessage('儲存失敗'); }
   };
 
@@ -498,18 +473,17 @@ export default function App() {
         )}
       </AnimatePresence>
 
-      {/* Top Nav (修復搜尋鈕顯示) */}
       <motion.nav animate={{ y: showHeader ? 0 : -100 }} className="fixed top-0 left-0 w-full p-8 flex justify-between items-center z-[110] mix-blend-difference font-black tracking-tighter uppercase italic text-white text-white">
-        <div onClick={() => { setView({type:'home'}); setActiveMenu('All'); setActiveSubPath('All'); setSearchQuery(''); window.scrollTo(0,0); }} className="text-xl cursor-pointer hover:opacity-50 transition-all text-white text-white">
+        <div onClick={() => { setView({type:'home'}); setActiveMenu('All'); setActiveSubPath('All'); setSearchQuery(''); setIsSearchOpen(false); window.scrollTo(0,0); }} className="text-xl cursor-pointer hover:opacity-50 transition-all text-white">
            {siteSettings.logoName || 'Curtis Chen'}
         </div>
         <div className="flex items-center gap-6">
-          <button onClick={() => setIsSearchOpen(!isSearchOpen)} className="hover:opacity-50 cursor-pointer transition-all text-white"><Search size={22} color="white"/></button>
+          <button onClick={() => setIsSearchOpen(!isSearchOpen)} className="hover:opacity-50 cursor-pointer transition-all text-white text-white"><Search size={22} color="white"/></button>
           <motion.button 
              key={menuPulseKey}
              animate={{ scale: [1, 1.3, 1], backgroundColor: ["rgba(255,255,255,0)", "rgba(255,255,255,0.4)", "rgba(255,255,255,0)"] }}
              transition={{ repeat: 4, duration: 0.6, ease: "easeInOut" }}
-             onClick={() => setIsMenuOpen(true)} className="hover:opacity-50 cursor-pointer relative transition-all p-2 rounded-full"
+             onClick={() => setIsMenuOpen(true)} className="hover:opacity-50 cursor-pointer relative transition-all p-2 rounded-full text-white text-white"
           ><Menu size={28} color="white"/></motion.button>
         </div>
       </motion.nav>
@@ -518,39 +492,55 @@ export default function App() {
       <AnimatePresence>
         {isSearchOpen && (
           <motion.div initial={{ opacity: 0, y: -20 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: -20 }} className="fixed top-24 left-0 w-full px-8 md:px-24 z-[105]">
-            <input autoFocus placeholder="搜尋數位展覽紀錄..." className="w-full bg-white/10 border border-white/20 backdrop-blur-3xl p-6 rounded-full text-xl outline-none focus:border-[#368C84]/50 transition-all text-white placeholder-white/20 shadow-2xl text-white text-white" value={searchQuery} onChange={e => setSearchQuery(e.target.value)} />
+            <input autoFocus placeholder="搜尋數位展覽紀錄..." className="w-full bg-white/10 border border-white/20 backdrop-blur-3xl p-6 rounded-full text-xl outline-none focus:border-[#368C84]/50 transition-all text-white placeholder-white/20 shadow-2xl text-white text-white text-white" value={searchQuery} onChange={e => setSearchQuery(e.target.value)} />
           </motion.div>
         )}
       </AnimatePresence>
 
-      {/* Fullscreen Menu */}
+      {/* Fullscreen Menu (縮小並優化排版) */}
       <AnimatePresence>
         {isMenuOpen && (
           <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} transition={transition} className="fixed inset-0 bg-[#368C84] z-[120] flex flex-col p-12 overflow-hidden select-none text-white text-white">
-            <div className="flex justify-end items-center gap-8">
+            <div className="flex justify-end items-center gap-8 text-white">
               <button onClick={() => { setIsSearchOpen(true); setIsMenuOpen(false); }} className="hover:opacity-50 transition-all cursor-pointer text-white"><Search size={28} color="white"/></button>
               <button onClick={() => setIsMenuOpen(false)} className="hover:rotate-90 transition-all duration-500 cursor-pointer text-white text-white text-white"><X size={48} strokeWidth={1} color="white"/></button>
             </div>
-            <div className="flex-grow flex flex-col items-center justify-around py-24 max-h-[85vh] text-white text-white">
-              <div className="flex flex-col items-center gap-12 md:gap-20 w-full text-white text-white text-white">
-                {menuRows.map((row, rid) => (
-                  <div key={rid} className="flex flex-wrap justify-center gap-12 md:gap-24 w-full px-4 text-white">
-                    {row.map((item) => (
-                      <InteractiveLink key={item} onClick={() => { setActiveMenu(item); setActiveSubPath('All'); setView({type:'home'}); setIsMenuOpen(false); window.scrollTo(0,0); }} className="text-3xl md:text-5xl font-serif font-light tracking-tight px-2 text-white">
-                        {item}
-                      </InteractiveLink>
-                    ))}
-                  </div>
-                ))}
-              </div>
-              <div className="flex flex-col items-center gap-8 mt-12 w-full text-white">
+            
+            <div className="flex-grow flex flex-col items-center justify-center gap-8 py-8 text-white text-white">
+              {menuRows.map((row, rid) => (
+                <div key={rid} className="flex flex-wrap justify-center gap-8 md:gap-16 w-full px-4 text-white">
+                  {row.map((item) => (
+                    <InteractiveLink key={item} onClick={() => { setActiveMenu(item); setActiveSubPath('All'); setView({type:'home'}); setIsMenuOpen(false); setIsSearchOpen(false); window.scrollTo(0,0); }} className="text-2xl md:text-4xl font-serif font-light tracking-tight px-2 text-white">
+                      {item}
+                    </InteractiveLink>
+                  ))}
+                </div>
+              ))}
+              <div className="flex flex-col items-center gap-8 mt-4 w-full text-white">
                 <div className="flex flex-wrap justify-center gap-12 text-white/50 text-white text-white text-white">
                    {isAdmin && <InteractiveLink onClick={() => { setEditingArticle(null); setView({type:'cms'}); setIsMenuOpen(false); }}>DASHBOARD</InteractiveLink>}
                    {!isAdmin && !user && <InteractiveLink onClick={() => { signInWithPopup(auth, provider).then(() => setIsMenuOpen(false)); }}>LOGIN</InteractiveLink>}
                 </div>
-                <InteractiveLink onClick={() => { setView({type:'bookmarks'}); setIsMenuOpen(false); window.scrollTo(0,0); }} className="text-[11px] uppercase tracking-[0.5em] flex items-center gap-4 border border-white/10 px-12 py-5 rounded-full hover:bg-white hover:text-black transition-all font-black shadow-2xl text-white text-white text-white">
+                <InteractiveLink onClick={() => { setView({type:'bookmarks'}); setIsMenuOpen(false); window.scrollTo(0,0); }} className="text-[10px] uppercase tracking-[0.4em] flex items-center gap-4 border border-white/10 px-10 py-4 rounded-full hover:bg-white hover:text-black transition-all font-black shadow-2xl text-white text-white text-white">
                   MY ARCHIVE ({userBookmarks.length})
                 </InteractiveLink>
+              </div>
+            </div>
+
+            {/* 底部資訊列 */}
+            <div className="flex flex-col md:flex-row justify-between items-end gap-12 border-t border-white/10 pt-8 pb-4 text-white text-white text-white text-white">
+              <div className="flex gap-8 text-white/30 text-white text-white">
+                  {socialLinks.facebook && <a href={socialLinks.facebook} target="_blank" className="hover:text-white transition-all text-white"><Facebook size={20}/></a>}
+                  {socialLinks.instagram && <a href={socialLinks.instagram} target="_blank" className="hover:text-white transition-all text-white"><Instagram size={20}/></a>}
+                  {socialLinks.youtube && <a href={socialLinks.youtube} target="_blank" className="hover:text-white transition-all text-white"><Youtube size={20}/></a>}
+                  {socialLinks.linktree && <a href={socialLinks.linktree} target="_blank" className="hover:text-white transition-all text-white"><LinkIcon size={20}/></a>}
+                  {socialLinks.spotify && <a href={socialLinks.spotify} target="_blank" className="hover:text-white transition-all text-white"><Music size={20}/></a>}
+              </div>
+              <div className="flex flex-col items-end gap-2 text-white">
+                <div className="flex gap-6 items-center text-white">
+                  {user && <InteractiveLink onClick={() => signOut(auth)} className="text-red-400/60 hover:text-red-400 text-white text-white">LOGOUT</InteractiveLink>}
+                </div>
+                <p className="text-[8px] text-white/5 italic tracking-widest uppercase opacity-30 text-white text-white">© 2026 Curtis Chen. Museum Blog Archive.</p>
               </div>
             </div>
           </motion.div>
@@ -558,51 +548,49 @@ export default function App() {
       </AnimatePresence>
 
       <AnimatePresence mode="wait">
-        {/* 首頁與分類展廳 */}
+        {/* Home & Category View */}
         {view.type === 'home' && (
-          <motion.main key={activeMenu} initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} className="pt-40 px-8 md:px-24 pb-40 text-white font-sans text-white text-white text-white">
-            <div className="flex flex-row items-start gap-12 mb-32 text-white text-white text-white">
-              <motion.div initial={{ x: -40, opacity: 0 }} animate={{ x: 0, opacity: 1 }} transition={transition} className="flex gap-4 text-white text-white text-white">
-                <div className="text-7xl md:text-[9.5vw] font-black leading-none uppercase tracking-tighter font-serif vertical-text border-r border-white/10 pr-6 text-white text-white text-white text-white">
+          <motion.main key={activeMenu} initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} className="pt-40 px-8 md:px-24 pb-40 text-white font-sans text-white text-white text-white text-white">
+            <div className="flex flex-row items-start gap-12 mb-32 text-white">
+              <motion.div initial={{ x: -40, opacity: 0 }} animate={{ x: 0, opacity: 1 }} transition={transition} className="flex gap-4">
+                <div className="text-7xl md:text-[9.5vw] font-black leading-none uppercase tracking-tighter font-serif vertical-text border-r border-white/10 pr-6 text-white text-white text-white">
                    {activeMenu === 'All' ? (siteSettings.title1 || '博物館') : activeMenu}
                 </div>
                 <div className="text-7xl md:text-[9.5vw] font-black leading-none uppercase tracking-tighter font-serif vertical-text pt-32 italic text-white text-white text-white text-white text-white">
                    {activeMenu === 'All' ? (siteSettings.title2 || '部落格') : '展覽室'}
                 </div>
               </motion.div>
-              <div className="flex-1 space-y-6 pt-16 hidden md:block text-white/60 text-white text-white text-white">
-                <p className="text-xs uppercase tracking-[0.6em] text-white/40 border-b border-white/10 pb-6 font-black tracking-[0.4em] text-white text-white text-white text-white">
+              <div className="flex-1 space-y-6 pt-16 hidden md:block text-white/60">
+                <p className="text-xs uppercase tracking-[0.6em] text-white/40 border-b border-white/10 pb-6 font-black tracking-[0.4em] text-white text-white text-white">
                    {activeMenu === 'All' ? (siteSettings.heroSubtitle || 'Digital Curations') : `Archives Gallery / ${activeMenu}`}
                 </p>
-                <div className="relative group text-white text-white text-white text-white text-white">
+                <div className="relative group text-white text-white text-white text-white">
                    {isEditingQuote ? (
                       <div className="flex flex-col gap-4 text-white text-white text-white">
-                        <textarea autoFocus className="bg-white/5 border border-white/20 p-4 rounded-xl text-white font-serif italic outline-none focus:border-white w-full text-white text-white text-white" defaultValue={menuQuotes[activeMenu]} onBlur={(e) => updateQuote(e.target.value)} />
-                        <span className="text-[8px] text-white/30 uppercase tracking-widest italic text-white text-white">離開輸入框即自動保存</span>
+                        <textarea autoFocus className="bg-white/5 border border-white/20 p-4 rounded-xl text-white font-serif italic outline-none focus:border-white w-full text-white text-white" defaultValue={menuQuotes[activeMenu]} onBlur={(e) => updateQuote(e.target.value)} />
                       </div>
                    ) : (
-                      <p className="text-lg font-serif italic text-white/60 leading-relaxed max-w-sm text-white text-white">
+                      <p className="text-lg font-serif italic text-white/60 leading-relaxed max-w-sm text-white">
                         {activeMenu === 'All' ? (siteSettings.heroDescription || '致力於收藏生活中的美學動態...') : (menuQuotes[activeMenu] || '此展廳正待修復。')}
-                        {isAdmin && activeMenu !== 'All' && <button onClick={() => setIsEditingQuote(true)} className="ml-4 p-2 opacity-0 group-hover:opacity-100 transition-opacity hover:text-white text-white text-white text-white text-white"><Edit3 size={14}/></button>}
+                        {isAdmin && activeMenu !== 'All' && <button onClick={() => setIsEditingQuote(true)} className="ml-4 p-2 opacity-0 group-hover:opacity-100 transition-opacity hover:text-white text-white text-white text-white text-white text-white text-white"><Edit3 size={14}/></button>}
                       </p>
                    )}
                 </div>
-                <SocialIconsList className="!gap-4 !text-white/10 pt-4" />
               </div>
             </div>
 
             {/* 過濾橫列 */}
-            <div className="space-y-8 mb-24 sticky top-0 bg-[#368C84]/90 backdrop-blur-lg z-[100] py-6 border-b border-white/5 text-white text-white text-white">
-              <div className="flex flex-col md:flex-row md:items-center justify-between gap-6 text-white text-white text-white">
-                <div className="flex flex-col text-white text-white text-white text-white">
-                  <div className="flex items-center gap-4 overflow-x-auto scrollbar-hide font-black text-white text-white text-white text-white text-white">
-                    <span className="text-[11px] uppercase tracking-[0.4em] text-white flex-shrink-0 flex items-center gap-2 font-black text-white text-white">
+            <div className="space-y-8 mb-24 sticky top-0 bg-[#368C84]/90 backdrop-blur-lg z-[100] py-6 border-b border-white/5 text-white">
+              <div className="flex flex-col md:flex-row md:items-center justify-between gap-6 text-white text-white">
+                <div className="flex flex-col text-white text-white text-white">
+                  <div className="flex items-center gap-4 overflow-x-auto scrollbar-hide font-black text-white text-white">
+                    <span className="text-[11px] uppercase tracking-[0.4em] text-white flex-shrink-0 flex items-center gap-2 font-black text-white text-white text-white">
                        {activeMenu === 'All' ? '精選' : '分區'}
                     </span>
                     {activeMenu === 'All' ? (
                        ['All', ...featuredMenus].map(m => (
                         <div key={m} className="relative group flex items-center text-white">
-                          <button onClick={() => { setActiveMenu(m); setActiveSubPath('All'); }} className={`px-6 py-2 rounded-full text-[10px] border whitespace-nowrap cursor-pointer transition-all ${activeMenu === m ? 'bg-white text-black border-white shadow-xl' : 'border-white/10 text-white/40 hover:border-white/60'}`}>{m}</button>
+                          <button onClick={() => { setActiveMenu(m); setActiveSubPath('All'); setIsSearchOpen(false); }} className={`px-6 py-2 rounded-full text-[10px] border whitespace-nowrap cursor-pointer transition-all ${activeMenu === m ? 'bg-white text-black border-white shadow-xl' : 'border-white/10 text-white/40 hover:border-white/60'}`}>{m}</button>
                           {isAdmin && m !== 'All' && (
                              <button onClick={() => toggleFMenu(m)} className="absolute -top-2 -right-2 p-1 bg-[#368C84] border border-white/20 rounded-full opacity-0 group-hover:opacity-100 transition-opacity text-white text-white text-white text-white">
                                 <Star size={10} fill="white" color="white" />
@@ -612,15 +600,14 @@ export default function App() {
                       ))
                     ) : (
                        ['All', ...showroomSubPaths].map(p => (
-                        <button key={p} onClick={() => setActiveSubPath(p)} className={`px-6 py-2 rounded-full text-[10px] border whitespace-nowrap cursor-pointer transition-all ${activeSubPath === p ? 'bg-white text-black border-white shadow-xl' : 'border-white/10 text-white/40 hover:border-white/60'}`}>{p}</button>
+                        <button key={p} onClick={() => { setActiveSubPath(p); setIsSearchOpen(false); }} className={`px-6 py-2 rounded-full text-[10px] border whitespace-nowrap cursor-pointer transition-all ${activeSubPath === p ? 'bg-white text-black border-white shadow-xl' : 'border-white/10 text-white/40 hover:border-white/60'}`}>{p}</button>
                        ))
                     )}
                   </div>
-                  {activeMenu === 'All' && <span className="text-[9px] text-white/10 ml-16 mt-2 tracking-widest font-black text-white text-white text-white text-white">[（看更多請點右上選單）]</span>}
                 </div>
-                <div className="flex items-center gap-4 text-[9px] uppercase tracking-[0.2em] font-black text-white/40 self-end md:self-auto text-white text-white text-white">
-                   <SortAsc size={12} color="white"/><span className="text-white text-white text-white">排序</span>
-                   <select className="bg-transparent border-none outline-none text-white transition-all font-black text-[10px] text-white text-white text-white" value={sortMode} onChange={(e) => setSortMode(e.target.value)}>
+                <div className="flex items-center gap-4 text-[9px] uppercase tracking-[0.2em] font-black text-white/40 self-end md:self-auto text-white text-white">
+                   <SortAsc size={12} color="white"/><span className="text-white">排序</span>
+                   <select className="bg-transparent border-none outline-none text-white transition-all font-black text-[10px]" value={sortMode} onChange={(e) => setSortMode(e.target.value)}>
                         <option value="time" className="bg-[#368C84]">Timeline</option>
                         <option value="comments" className="bg-[#368C84]">Discussion</option>
                    </select>
@@ -628,23 +615,23 @@ export default function App() {
               </div>
             </div>
 
-            {/* 文章羅列 */}
+            {/* 檔案渲染 */}
             <div className="grid grid-cols-1 text-white text-white">
               {activeMenu !== 'All' ? (
                 Object.entries(groupedArticles).map(([group, arts]) => (
-                  <div key={group} className="mb-24 text-white text-white text-white">
-                     <h2 className="text-4xl md:text-7xl font-serif italic text-white/10 mb-12 border-b border-white/5 pb-8 text-white text-white">{group}</h2>
-                     <div className="space-y-0 text-white text-white text-white text-white">
+                  <div key={group} className="mb-24 text-white text-white">
+                     <h2 className="text-4xl md:text-7xl font-serif italic text-white/10 mb-12 border-b border-white/5 pb-8 text-white">{group}</h2>
+                     <div className="space-y-0 text-white text-white text-white">
                         {arts.map((art) => (
-                          <motion.div key={art.id} onClick={() => setView({ type: 'article', id: art.id })} className="group py-12 border-b border-white/5 flex flex-col md:flex-row justify-between items-start md:items-center cursor-pointer hover:bg-white/[0.02] px-8 -mx-8 relative text-white text-white text-white">
-                             <div className="flex-1 text-white text-white text-white text-white text-white">
-                                <div className="flex items-center gap-3 text-[10px] uppercase tracking-widest text-white/40 italic font-bold mb-3 text-white text-white text-white text-white text-white">
-                                  {art.subPath?.map((p, i) => <span key={i} className="flex items-center gap-1 opacity-40 text-white text-white text-white text-white text-white text-white text-white"><ChevronRight size={10} color="white"/> {p}</span>)}
+                          <motion.div key={art.id} onClick={() => { setView({ type: 'article', id: art.id }); setIsSearchOpen(false); }} className="group py-12 border-b border-white/5 flex flex-col md:flex-row justify-between items-start md:items-center cursor-pointer hover:bg-white/[0.02] px-8 -mx-8 relative text-white text-white">
+                             <div className="flex-1 text-white text-white">
+                                <div className="flex items-center gap-3 text-[10px] uppercase tracking-widest text-white/40 italic font-bold mb-3 text-white text-white text-white">
+                                  {art.subPath?.map((p, i) => <span key={i} className="flex items-center gap-1 opacity-40 text-white text-white text-white text-white"><ChevronRight size={10} color="white"/> {p}</span>)}
                                   {art.status === 'draft' && <span className="bg-yellow-500/20 text-yellow-500 px-2 rounded-full text-[8px] tracking-widest border border-yellow-500/20 text-white text-white text-white">DRAFT</span>}
                                 </div>
-                                <h3 className="text-3xl md:text-5xl font-serif leading-tight group-hover:font-black group-hover:italic text-white text-white text-white text-white text-white text-white">{art.title}</h3>
+                                <h3 className="text-3xl md:text-5xl font-serif leading-tight group-hover:font-black group-hover:italic text-white text-white text-white text-white">{art.title}</h3>
                              </div>
-                             <ArrowUpRight size={24} color="white" className="mt-8 md:mt-0 text-white/20 group-hover:text-white transition-all text-white text-white text-white text-white text-white text-white" />
+                             <ArrowUpRight size={24} color="white" className="mt-8 md:mt-0 text-white/20 group-hover:text-white transition-all text-white text-white text-white text-white text-white text-white text-white" />
                           </motion.div>
                         ))}
                      </div>
@@ -652,18 +639,18 @@ export default function App() {
                 ))
               ) : (
                 processedArticles.map((art) => (
-                  <motion.div key={art.id} onClick={() => setView({ type: 'article', id: art.id })} className="group py-16 border-b border-white/5 flex flex-col md:flex-row justify-between items-start md:items-center cursor-pointer hover:bg-white/[0.02] transition-all px-8 -mx-8 relative text-white text-white text-white text-white text-white text-white">
-                    <div className="flex-1 space-y-4 text-white text-white text-white text-white text-white text-white text-white text-white">
-                      <div className="flex items-center gap-3 flex-wrap text-[10px] uppercase tracking-widest text-white/40 italic font-bold text-white text-white text-white text-white text-white text-white text-white text-white text-white">
-                        {art.isPinned && <Star size={12} fill="white" className="text-white mr-2 text-white text-white text-white text-white text-white text-white text-white text-white text-white" />}
+                  <motion.div key={art.id} onClick={() => { setView({ type: 'article', id: art.id }); setIsSearchOpen(false); }} className="group py-16 border-b border-white/5 flex flex-col md:flex-row justify-between items-start md:items-center cursor-pointer hover:bg-white/[0.02] transition-all px-8 -mx-8 relative text-white text-white text-white">
+                    <div className="flex-1 space-y-4 text-white text-white text-white">
+                      <div className="flex items-center gap-3 flex-wrap text-[10px] uppercase tracking-widest text-white/40 italic font-bold text-white text-white text-white">
+                        {art.isPinned && <Star size={12} fill="white" className="text-white mr-2 text-white" />}
                         <span>{art.mainMenu}</span>
-                        {art.subPath?.map((p, i) => <span key={i} className="flex items-center gap-1 opacity-40 text-white text-white text-white text-white text-white text-white text-white text-white text-white text-white"><ChevronRight size={10} color="white"/> {p}</span>)}
+                        {art.subPath?.map((p, i) => <span key={i} className="flex items-center gap-1 opacity-40 text-white text-white"><ChevronRight size={10} color="white"/> {p}</span>)}
                         {art.status === 'draft' && <span className="bg-yellow-500/20 text-yellow-500 px-2 rounded-full text-[8px] tracking-widest border border-yellow-500/20 ml-2 text-white text-white text-white text-white">DRAFT</span>}
                       </div>
-                      <h3 className="text-4xl md:text-7xl font-serif leading-tight group-hover:font-black group-hover:italic text-white text-white text-white text-white text-white text-white text-white text-white text-white">{art.title}</h3>
+                      <h3 className="text-4xl md:text-7xl font-serif leading-tight group-hover:font-black group-hover:italic text-white text-white text-white text-white text-white text-white">{art.title}</h3>
                       <p className="text-[9px] uppercase tracking-widest text-white/20 font-mono text-white/20 text-white text-white text-white text-white text-white text-white text-white text-white text-white">{new Date(art.publishDate.toDate()).toLocaleDateString()}</p>
                     </div>
-                    {isAdmin && <button onClick={(e) => { e.stopPropagation(); setEditingArticle(art); setView({type:'cms'}); }} className="p-3 rounded-full border border-white/10 hover:bg-white hover:text-black transition-all cursor-pointer text-white text-white text-white text-white text-white text-white text-white text-white text-white text-white"><Edit3 size={16} color="white"/></button>}
+                    {isAdmin && <button onClick={(e) => { e.stopPropagation(); setEditingArticle(art); setView({type:'cms'}); }} className="p-3 rounded-full border border-white/10 hover:bg-white hover:text-black transition-all cursor-pointer text-white text-white text-white text-white text-white text-white text-white text-white"><Edit3 size={16} color="white"/></button>}
                   </motion.div>
                 ))
               )}
@@ -673,25 +660,25 @@ export default function App() {
 
         {/* 文章內容視圖 */}
         {view.type === 'article' && (
-          <motion.article key="article" initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} transition={transition} className="pt-40 px-8 md:px-24 max-w-6xl mx-auto pb-60 text-white font-sans text-white text-white text-white text-white text-white text-white text-white text-white">
-            <div className="flex justify-between items-center mb-16 border-b border-white/5 pb-8 text-white text-white text-white text-white text-white text-white text-white text-white text-white text-white">
-              <div className="flex items-center gap-4 text-[10px] uppercase tracking-widest text-white/20 font-serif italic text-white text-white text-white text-white text-white text-white text-white text-white text-white text-white text-white">
-                <InteractiveLink onClick={() => { setView({type:'home'}); setActiveMenu(articles.find(a => a.id === view.id).mainMenu); }} className="text-white text-white text-white text-white text-white text-white text-white">{articles.find(a => a.id === view.id).mainMenu}</InteractiveLink>
-                {articles.find(a => a.id === view.id)?.subPath?.map((p, i) => (<React.Fragment key={i}><ChevronRight size={10} color="white" /><span className="text-white/40 text-white text-white text-white text-white text-white text-white">{p}</span></React.Fragment>))}
+          <motion.article key="article" initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} transition={transition} className="pt-40 px-8 md:px-24 max-w-6xl mx-auto pb-60 text-white font-sans text-white text-white text-white text-white text-white text-white text-white text-white text-white">
+            <div className="flex justify-between items-center mb-16 border-b border-white/5 pb-8 text-white text-white text-white text-white text-white text-white text-white text-white text-white text-white text-white text-white">
+              <div className="flex items-center gap-4 text-[10px] uppercase tracking-widest text-white/20 font-serif italic text-white text-white text-white text-white text-white text-white text-white text-white text-white text-white">
+                <InteractiveLink onClick={() => { setView({type:'home'}); setActiveMenu(articles.find(a => a.id === view.id).mainMenu); }} className="text-white text-white text-white text-white text-white text-white text-white text-white text-white text-white">{articles.find(a => a.id === view.id).mainMenu}</InteractiveLink>
+                {articles.find(a => a.id === view.id)?.subPath?.map((p, i) => (<React.Fragment key={i}><ChevronRight size={10} color="white" /><span className="text-white/40 text-white text-white text-white text-white text-white text-white text-white">{p}</span></React.Fragment>))}
               </div>
-              <div className="flex items-center gap-6 text-white text-white text-white text-white text-white text-white text-white text-white text-white">
+              <div className="flex items-center gap-6 text-white text-white text-white text-white text-white text-white text-white text-white text-white text-white">
                 <button onClick={() => toggleBookmark(view.id)} className={`p-3 rounded-full border transition-all cursor-pointer ${userBookmarks.includes(view.id) ? 'bg-white text-[#368C84] shadow-xl' : 'border-white/10 hover:border-white/40'}`}><Bookmark size={16} color="white" fill={userBookmarks.includes(view.id) ? "white" : "none"} /></button>
-                {isAdmin && <button onClick={() => { setEditingArticle(articles.find(a => a.id === view.id)); setView({type:'cms'}); }} className="flex items-center gap-3 text-[10px] uppercase tracking-widest text-white/40 border border-white/10 px-6 py-2 rounded-full font-black shadow-xl transition-all hover:bg-white hover:text-black uppercase text-white text-white text-white text-white text-white text-white text-white text-white">編輯館藏</button>}
+                {isAdmin && <button onClick={() => { setEditingArticle(articles.find(a => a.id === view.id)); setView({type:'cms'}); }} className="flex items-center gap-3 text-[10px] uppercase tracking-widest text-white/40 border border-white/10 px-6 py-2 rounded-full font-black shadow-xl transition-all hover:bg-white hover:text-black uppercase text-white text-white text-white text-white text-white text-white text-white text-white text-white text-white">編輯館藏</button>}
               </div>
             </div>
             {articles.find(a => a.id === view.id) && (
               <>
-                <h1 className="text-5xl md:text-[7.5vw] font-black font-serif mb-24 leading-[1.05] tracking-tighter italic text-white text-white text-white text-white text-white text-white text-white text-white text-white text-white text-white">{articles.find(a => a.id === view.id).title}</h1>
-                <div className="text-xl md:text-2xl leading-relaxed text-white/70 space-y-12 font-serif max-w-3xl mb-60 article-content text-white text-white text-white text-white text-white text-white text-white text-white text-white text-white text-white text-white" dangerouslySetInnerHTML={{ __html: renderMarkdown(articles.find(a => a.id === view.id).content) }} />
+                <h1 className="text-5xl md:text-[7.5vw] font-black font-serif mb-24 leading-[1.05] tracking-tighter italic text-white text-white text-white text-white text-white text-white text-white text-white text-white text-white text-white text-white text-white text-white">{articles.find(a => a.id === view.id).title}</h1>
+                <div className="text-xl md:text-2xl leading-relaxed text-white/70 space-y-12 font-serif max-w-3xl mb-60 article-content text-white text-white text-white text-white text-white text-white text-white text-white text-white text-white text-white text-white text-white text-white text-white" dangerouslySetInnerHTML={{ __html: renderMarkdown(articles.find(a => a.id === view.id).content) }} />
                 
                 {/* 反應區 */}
-                <div className="flex flex-col items-center gap-8 mb-40 border-y border-white/5 py-12 text-white text-white text-white text-white text-white text-white text-white text-white text-white text-white text-white">
-                  <div className="flex gap-4 flex-wrap justify-center text-white text-white text-white text-white text-white text-white text-white text-white text-white text-white">
+                <div className="flex flex-col items-center gap-8 mb-40 border-y border-white/5 py-12 text-white text-white text-white text-white text-white text-white text-white text-white text-white text-white text-white text-white text-white">
+                  <div className="flex gap-4 flex-wrap justify-center text-white text-white text-white text-white text-white text-white text-white text-white text-white text-white text-white text-white text-white">
                     {[{e: '❤️', t: 'heart'}, {e: '😂', t: 'funny'}, {e: '😮', t: 'wow'}, {e: '😢', t: 'sad'}, {e: '💩', t: 'poop'}].map(emo => (
                       <motion.button key={emo.t} whileHover={{ scale: 1.2 }} whileTap={{ scale: 0.9 }} onClick={() => setReaction(emo.t)} className={`p-5 rounded-[30px] border transition-all flex flex-col items-center gap-1 z-10 ${reactions.myType === emo.t ? 'bg-white text-[#368C84]' : 'border-white/5 bg-white/5 text-white/40'}`}>
                         <span className="text-3xl text-white">{emo.e}</span>
@@ -702,56 +689,48 @@ export default function App() {
                 </div>
 
                 {/* 留言區 */}
-                <div className="max-w-3xl mx-auto mb-60 space-y-16 text-white text-white text-white text-white text-white text-white text-white text-white text-white text-white text-white text-white">
-                  <h3 className="text-2xl font-serif italic flex items-center gap-4 text-white text-white text-white text-white text-white">檔案評論區 <span className="text-xs font-mono opacity-20 tracking-tighter text-white text-white text-white text-white text-white">({comments.length})</span></h3>
-                  <div className="space-y-12 text-white text-white text-white text-white text-white text-white text-white text-white text-white">
+                <div className="max-w-3xl mx-auto mb-60 space-y-16 text-white text-white text-white text-white text-white text-white text-white text-white text-white text-white text-white text-white text-white text-white text-white">
+                  <h3 className="text-2xl font-serif italic flex items-center gap-4 text-white text-white text-white text-white text-white text-white text-white text-white text-white text-white text-white text-white text-white">檔案評論區 <span className="text-xs font-mono opacity-20 tracking-tighter text-white text-white text-white text-white text-white text-white text-white">({comments.length})</span></h3>
+                  <div className="space-y-12 text-white text-white text-white text-white text-white text-white text-white text-white text-white text-white text-white text-white text-white">
                     {comments.map(c => (
-                      <div key={c.id} className="group flex gap-6 items-start text-white text-white text-white text-white text-white text-white text-white text-white text-white text-white text-white">
-                        <div className="w-12 h-12 rounded-full bg-white/5 border border-white/10 flex-shrink-0 overflow-hidden shadow-2xl text-white text-white text-white text-white text-white text-white text-white text-white">
-                          {c.userPhoto ? <img src={c.userPhoto} alt="" className="w-full h-full object-cover text-white text-white text-white text-white text-white text-white text-white" /> : <div className="w-full h-full flex items-center justify-center text-white/10 italic font-black font-serif uppercase text-white text-white text-white text-white text-white text-white">?</div>}
+                      <div key={c.id} className="group flex gap-6 items-start text-white text-white text-white text-white text-white text-white text-white text-white text-white text-white text-white text-white text-white text-white">
+                        <div className="w-12 h-12 rounded-full bg-white/5 border border-white/10 flex-shrink-0 overflow-hidden shadow-2xl text-white text-white text-white text-white text-white text-white text-white text-white text-white text-white text-white">
+                          {c.userPhoto ? <img src={c.userPhoto} alt="" className="w-full h-full object-cover text-white text-white text-white text-white text-white text-white text-white text-white text-white text-white" /> : <div className="w-full h-full flex items-center justify-center text-white/10 italic font-black font-serif uppercase text-white text-white text-white text-white text-white text-white text-white">?</div>}
                         </div>
-                        <div className="flex-1 space-y-2 text-white text-white text-white text-white text-white text-white text-white text-white text-white">
-                          <div className="flex items-center justify-between text-white text-white text-white text-white text-white text-white text-white text-white text-white text-white">
-                            <div className="flex items-center gap-3 text-white text-white text-white text-white text-white text-white text-white text-white text-white text-white">
-                              <span className="text-xs font-black text-white/80 text-white text-white text-white text-white text-white text-white text-white text-white">{c.userName}</span>
-                              <span className="text-[9px] text-white/20 font-mono italic text-white text-white text-white text-white text-white text-white text-white text-white text-white">{new Date(c.createdAt.toDate()).toLocaleDateString()}</span>
+                        <div className="flex-1 space-y-2 text-white text-white text-white text-white text-white text-white text-white text-white text-white text-white text-white">
+                          <div className="flex items-center justify-between text-white text-white text-white text-white text-white text-white text-white text-white text-white text-white text-white text-white">
+                            <div className="flex items-center gap-3 text-white text-white text-white text-white text-white text-white text-white text-white text-white text-white text-white text-white">
+                              <span className="text-xs font-black text-white/80 text-white text-white text-white text-white text-white text-white text-white text-white text-white text-white">{c.userName}</span>
+                              <span className="text-[9px] text-white/20 font-mono italic text-white text-white text-white text-white text-white text-white text-white text-white text-white text-white">{new Date(c.createdAt.toDate()).toLocaleDateString()}</span>
                             </div>
-                            <div className="flex gap-4 opacity-0 group-hover:opacity-100 transition-opacity text-white text-white text-white text-white text-white text-white text-white text-white text-white">
+                            <div className="flex gap-4 opacity-0 group-hover:opacity-100 transition-opacity text-white text-white text-white text-white text-white text-white text-white text-white text-white text-white text-white">
                               {(c.userId === user?.uid || isAdmin) && <button onClick={() => deleteComment(c.id)} className="text-white/20 hover:text-red-400 transition-all cursor-pointer text-white text-white text-white text-white text-white text-white text-white text-white text-white"><Trash2 size={14} color="white"/></button>}
                             </div>
                           </div>
-                          <p className="text-white/60 font-serif text-lg leading-relaxed text-white text-white text-white text-white text-white text-white text-white text-white text-white text-white">${c.text}</p>
+                          <p className="text-white/60 font-serif text-lg leading-relaxed text-white text-white text-white text-white text-white text-white text-white text-white text-white text-white text-white text-white text-white">${c.text}</p>
                         </div>
                       </div>
                     ))}
                   </div>
-                  <div className="relative pt-12 text-white text-white text-white text-white text-white text-white text-white text-white text-white text-white text-white text-white">
+                  <div className="relative pt-12 text-white text-white text-white text-white text-white text-white text-white text-white text-white text-white text-white text-white text-white">
                     <textarea rows={4} className="w-full bg-white/5 border border-white/10 rounded-[50px] p-10 outline-none focus:border-[#368C84]/50 transition-all font-serif text-white placeholder-white/5 shadow-inner text-white text-white text-white text-white text-white text-white text-white text-white" value={newComment} onChange={e => setNewComment(e.target.value)} placeholder={user ? "撰寫評論..." : "請先登入以發表評論"} />
-                    <div className="flex justify-end mt-4 text-white text-white text-white text-white text-white text-white text-white text-white text-white">
-                       <button onClick={postComment} className="bg-white text-[#368C84] px-10 py-4 rounded-full font-black text-xs flex items-center gap-4 cursor-pointer shadow-2xl hover:scale-105 transition-all text-[#368C84] z-10 text-white text-white text-white text-white text-white text-white">Submit <Send size={18} color="#368C84"/></button>
+                    <div className="flex justify-end mt-4 text-white text-white text-white text-white text-white text-white text-white text-white text-white text-white text-white">
+                       <button onClick={postComment} className="bg-white text-[#368C84] px-10 py-4 rounded-full font-black text-xs flex items-center gap-4 cursor-pointer shadow-2xl hover:scale-105 transition-all text-[#368C84] z-10 text-white text-white text-white text-white text-white">Submit <Send size={18} color="#368C84"/></button>
                     </div>
                   </div>
                 </div>
 
-                <div className="pt-32 border-t border-white/10 flex flex-col items-center text-white text-white text-white text-white text-white text-white text-white text-white text-white text-white text-white">
-                    <p className="text-[10px] uppercase tracking-[0.6em] text-white/20 mb-12 italic font-black text-white/40 text-white text-white text-white text-white text-white text-white text-white">Next Exhibition</p>
+                <div className="pt-32 border-t border-white/10 flex flex-col items-center text-white text-white text-white text-white text-white text-white text-white text-white text-white text-white">
+                    <p className="text-[10px] uppercase tracking-[0.6em] text-white/20 mb-12 italic font-black text-white/40 text-white text-white text-white text-white text-white">Next Exhibition</p>
                     <div className="w-full flex flex-row items-center justify-between gap-4 md:gap-12 px-2 text-white text-white text-white text-white text-white text-white text-white text-white text-white text-white text-white">
-                        <div onClick={() => { setView({type:'home'}); window.scrollTo(0,0); }} className="flex items-center gap-6 group cursor-pointer text-white flex-shrink-0 text-white text-white text-white text-white text-white text-white text-white text-white text-white">
-                            <div className="p-4 md:p-6 rounded-full border border-white/20 group-hover:bg-white group-hover:text-black transition-all duration-700 shadow-2xl flex items-center justify-center text-white text-white text-white text-white text-white text-white text-white text-white text-white">
-                                <ArrowLeft size={20} color="white" className="group-hover:stroke-black text-white text-white text-white text-white text-white text-white text-white text-white text-white" />
+                        <div onClick={() => { setView({type:'home'}); window.scrollTo(0,0); }} className="flex items-center gap-6 group cursor-pointer text-white flex-shrink-0 text-white text-white text-white text-white text-white text-white text-white">
+                            <div className="p-4 md:p-6 rounded-full border border-white/20 group-hover:bg-white group-hover:text-black transition-all duration-700 shadow-2xl flex items-center justify-center text-white text-white text-white text-white text-white text-white text-white text-white">
+                                <ArrowLeft size={20} color="white" className="group-hover:stroke-black text-white text-white text-white text-white text-white text-white text-white text-white" />
                             </div>
-                            <span className="text-[9px] md:text-[11px] uppercase tracking-[0.5em] text-white/30 group-hover:text-white whitespace-nowrap font-black hidden lg:inline text-white text-white text-white text-white text-white text-white text-white">Back to List</span>
+                            <span className="text-[9px] md:text-[11px] uppercase tracking-[0.5em] text-white/30 group-hover:text-white whitespace-nowrap font-black hidden lg:inline text-white text-white text-white text-white text-white text-white text-white text-white">Back to List</span>
                         </div>
-                        {articles.filter(a => a.id !== view.id)[0] && (
-                           <motion.div whileHover={{ scale: 1.05 }} onClick={() => { setView({type:'article', id: articles.filter(a => a.id !== view.id)[0].id}); window.scrollTo(0,0); }} className="flex flex-col items-center group cursor-pointer max-w-[50%] md:max-w-xl text-center text-white overflow-hidden text-white text-white text-white text-white text-white text-white text-white text-white text-white text-white">
-                              <h4 className="text-xl md:text-4xl font-serif text-white transition-all leading-tight tracking-tighter group-hover:italic group-hover:font-black truncate w-full text-white text-white text-white text-white text-white text-white text-white text-white text-white text-white text-white">
-                                 {articles.filter(a => a.id !== view.id)[0].title}
-                              </h4>
-                              <ArrowRight size={20} className="mt-4 text-white/20 group-hover:text-white transition-colors text-white text-white text-white text-white text-white text-white text-white text-white text-white" color="white" />
-                           </motion.div>
-                        )}
-                        <div onClick={() => { setView({type:'home'}); setActiveMenu('All'); window.scrollTo(0,0); }} className="flex items-center gap-6 group cursor-pointer text-white flex-shrink-0 text-white text-white text-white text-white text-white text-white text-white text-white text-white">
-                            <span className="text-[9px] md:text-[11px] uppercase tracking-[0.4em] text-white/30 group-hover:text-white whitespace-nowrap font-black hidden lg:inline text-white text-white text-white text-white text-white text-white text-white text-white text-white">Return Home</span>
+                        <div onClick={() => { setView({type:'home'}); setActiveMenu('All'); window.scrollTo(0,0); }} className="flex items-center gap-6 group cursor-pointer text-white flex-shrink-0 text-white text-white text-white text-white text-white text-white text-white text-white">
+                            <span className="text-[9px] md:text-[11px] uppercase tracking-[0.4em] text-white/30 group-hover:text-white whitespace-nowrap font-black hidden lg:inline text-white text-white text-white text-white text-white text-white text-white text-white">Return Home</span>
                             <div className="p-3 md:p-5 rounded-full border border-white/20 group-hover:bg-white group-hover:text-black transition-all duration-700 shadow-2xl flex items-center justify-center text-white text-white text-white text-white text-white text-white text-white text-white">
                                 <Home size={20} color="white" className="group-hover:stroke-black text-white text-white text-white text-white text-white text-white text-white text-white" />
                             </div>
@@ -763,15 +742,15 @@ export default function App() {
           </motion.article>
         )}
 
-        {/* CMS (整合即時文案編輯器) */}
+        {/* CMS */}
         {view.type === 'cms' && isAdmin && (
           <CMSDashboard user={user} setView={setView} editData={editingArticle} showMessage={showMessage} menuList={dynamicMenuItems} featuredMenus={featuredMenus} menuQuotes={menuQuotes} articles={articles} siteSettings={siteSettings} />
         )}
       </AnimatePresence>
 
       <footer className="p-12 md:p-24 border-t border-white/5 flex flex-col md:flex-row justify-between items-center gap-8 text-[8px] text-white/10 uppercase tracking-[0.6em] font-light italic text-white/10 text-white text-white text-white text-white text-white text-white text-white text-white text-white text-white text-white text-white text-white text-white text-white text-white text-white">
-        <InteractiveLink className="font-black text-white/20 text-white text-white text-white text-white text-white text-white text-white text-white text-white text-white text-white text-white text-white text-white" onClick={() => setView({type:'home'})}>© 2026 CURTIS CHEN — MUSEUM BLOG ARCHIVE</InteractiveLink>
-        <div className="flex items-center gap-8 transition-all hover:text-white/40 font-black uppercase text-white/20 text-white text-white text-white text-white text-white text-white text-white text-white text-white text-white text-white"><ShieldCheck size={10} color="white"/> Private Encryption Active</div>
+        <InteractiveLink className="font-black text-white/20 text-white text-white text-white text-white text-white text-white text-white text-white text-white text-white text-white text-white text-white text-white text-white text-white text-white" onClick={() => setView({type:'home'})}>© 2026 CURTIS CHEN — MUSEUM BLOG ARCHIVE</InteractiveLink>
+        <div className="flex items-center gap-8 transition-all hover:text-white/40 font-black uppercase text-white/20 text-white text-white text-white text-white text-white text-white text-white text-white text-white text-white text-white text-white text-white text-white text-white text-white text-white"><ShieldCheck size={10} color="white"/> Private Encryption Active</div>
       </footer>
     </div>
   );
